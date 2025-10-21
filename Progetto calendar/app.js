@@ -155,6 +155,39 @@ function renderTable(headers, rows){
   });
   tBody.appendChild(frag);
 
+  // Evidenzia tutti i record della giornata se copertura < 8 ore
+  const _dateH = autoDetectDateHeader(headers);
+  const _startH = autoDetectStartHeader(headers);
+  const _endH = autoDetectEndHeader(headers);
+  if(_dateH && _startH && _endH){
+    const createdRows = [...tBody.querySelectorAll('tr')];
+    const map = new Map();
+    createdRows.forEach((tr, idx)=>{
+      const r = filtered[idx];
+      const dVal = r[_dateH];
+      const sVal = r[_startH];
+      const eVal = r[_endH];
+      const dateObj = (dVal instanceof Date) ? dVal : (typeof dVal === 'string' && dVal) ? new Date(dVal) : null;
+      const key = dateObj ? dateObj.toISOString().slice(0,10) : String(dVal);
+      if(!map.has(key)) map.set(key, {intervals:[], rows:[]});
+      map.get(key).rows.push(tr);
+      const sMin = toMinutes(sVal);
+      const eMin = toMinutes(eVal);
+      if(sMin!=null && eMin!=null && eMin>sMin){
+        map.get(key).intervals.push({start:sMin, end:eMin});
+      }
+    });
+    for(const [k, grp] of map.entries()){
+      const minutes = coveredMinutesWithinNeeds(grp.intervals);
+      if(minutes < 480){
+        grp.rows.forEach(tr => tr.classList.add('day-short'));
+      }else{
+        grp.rows.forEach(tr => tr.classList.remove('day-short'));
+      }
+    }
+  }
+
+
   rowsCount.textContent = filtered.length ? `${filtered.length} righe visualizzate` : 'Nessun dato da mostrare';
 
   // Aggiorna select colonna data/ora
@@ -272,6 +305,21 @@ function isDayFull(intervals){
   const needs = [{start:9*60, end:13*60}, {start:14*60, end:18*60}];
   // per ogni blocco richiesto, deve esistere un intervallo merged che lo copre interamente
   return needs.every(req => merged.some(iv => iv.start<=req.start && iv.end>=req.end));
+}
+
+// Calcola i minuti coperti all'interno delle finestre richieste (09-13 e 14-18)
+function coveredMinutesWithinNeeds(intervals){
+  const merged = mergeIntervals(intervals);
+  const needs = [{start:9*60, end:13*60}, {start:14*60, end:18*60}];
+  let total = 0;
+  for(const need of needs){
+    for(const iv of merged){
+      const start = Math.max(need.start, iv.start);
+      const end = Math.min(need.end, iv.end);
+      if(end > start) total += (end - start);
+    }
+  }
+  return total;
 }
 
 
