@@ -155,6 +155,26 @@ function renderTable(headers, rows){
   });
   tBody.appendChild(frag);
 
+  // Separatore visivo tra date diverse
+  const _dateHeaderForSep = autoDetectDateHeader(headers);
+  if(_dateHeaderForSep){
+    const createdRows2 = [...tBody.querySelectorAll('tr')];
+    let prevKey = null;
+    createdRows2.forEach((tr, idx)=>{
+      const r = filtered[idx];
+      const dVal = r[_dateHeaderForSep];
+      const dateObj = (dVal instanceof Date) ? dVal : (typeof dVal === 'string' && dVal) ? new Date(dVal) : null;
+      const key = dateObj ? dateObj.toISOString().slice(0,10) : String(dVal);
+      if(idx>0 && key !== prevKey){
+        tr.classList.add('date-sep');
+      }else{
+        tr.classList.remove('date-sep');
+      }
+      prevKey = key;
+    });
+  }
+
+
   // Evidenzia tutti i record della giornata se copertura < 8 ore
   const _dateH = autoDetectDateHeader(headers);
   const _startH = autoDetectStartHeader(headers);

@@ -86,3 +86,10 @@ tbody tr.day-short{
 tbody tr.day-short:hover{
   background: linear-gradient(180deg, rgba(255,193,7,.25), rgba(255,159,67,.22));
 }
+
+
+/* Separatore tra date diverse */
+tbody tr.date-sep td{
+  border-top: 2px solid rgba(110,168,254,.35);
+  padding-top: 18px;
+}
