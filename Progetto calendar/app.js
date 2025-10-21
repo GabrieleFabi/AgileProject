@@ -1,0 +1,339 @@
+// Utilities ---------------------------------------------------------------
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => [...root.querySelectorAll(sel)];
+const statusBadge = $('#statusBadge');
+const dropZone = $('#dropZone');
+const fileInput = $('#fileInput');
+const sheetSelect = $('#sheetSelect');
+const searchInput = $('#searchInput');
+const dateColumnSelect = $('#dateColumnSelect');
+const timeColumnSelect = $('#timeColumnSelect');
+const table = $('#dataTable');
+const tHead = table.tHead || table.createTHead();
+const tBody = table.tBodies[0] || table.createTBody();
+const rowsCount = $('#rowsCount');
+const sortHint = $('#sortHint');
+
+let workbook = null;
+let currentData = [];   // array di oggetti {col:val}
+let currentHeaders = [];// array di stringhe
+let sortState = {key:null, dir:1};
+
+// --- Filtri colonne da nascondere ---
+const DROP_HEADER_RE = /^(colonna|giorno|fust2)$/i;
+
+function isEmptyCell(v){
+  if (v === null || v === undefined) return true;
+  if (v instanceof Date) return false;
+  if (typeof v === 'number') return FalseIfZero(v=false); // number counts as not empty
+  const s = String(v).trim();
+  return s === '' || s === '-' || s === '—';
+}
+// small helper to keep linter quiet, numbers are considered not empty
+function FalseIfZero(v){ return false; }
+
+function shouldDropHeader(h, rows){
+  if (!h) return true;
+  if (DROP_HEADER_RE.test(String(h).trim())) return true;
+  // elimina colonne completamente vuote
+  return rows.every(r => isEmptyCell(r[h]));
+}
+
+
+function setStatus(text, tone="info"){
+  statusBadge.textContent = text;
+  const color = tone === 'ok' ? 'var(--accent)' : tone === 'err' ? 'var(--danger)' : 'var(--brand)';
+  statusBadge.style.borderColor = 'var(--border)';
+  statusBadge.style.boxShadow = 'inset 0 0 0 1px var(--border)';
+  statusBadge.style.color = '#fff';
+  statusBadge.style.background = `linear-gradient(180deg, ${color}, ${shade(color, -20)})`;
+}
+function shade(hex, percent){
+  if(!hex.startsWith('#')) return hex;
+  const num = parseInt(hex.slice(1), 16);
+  let r = (num >> 16) + Math.round(255*percent/100);
+  let g = (num >> 8 & 0x00FF) + Math.round(255*percent/100);
+  let b = (num & 0x0000FF) + Math.round(255*percent/100);
+  r=Math.max(Math.min(255,r),0); g=Math.max(Math.min(255,g),0); b=Math.max(Math.min(255,b),0);
+  return `#${(b | (g << 8) | (r << 16)).toString(16).padStart(6,'0')}`
+}
+
+function excelToJson(ws){
+  const aoa = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:""});
+  if(!aoa.length){ return {headers:[], rows:[]} }
+  let headers = aoa[0].map(h => sanitizeHeader(String(h || 'Colonna')));
+  if(headers.every(h => h === 'Colonna')){
+    headers = aoa[0].map((_,i)=> colName(i));
+  }
+  const rows = aoa.slice(1).map(r => {
+    const obj = {};
+    headers.forEach((h,i)=>{ obj[h] = formatCell(r[i]); });
+    return obj;
+  });
+  return {headers, rows};
+}
+function sanitizeHeader(h){
+  return h.trim().replace(/\s+/g,' ').replace(/[\n\r]+/g,' ').replace(/[<>"']/g,'').slice(0,80);
+}
+function colName(i){
+  let s=""; i++;
+  while(i>0){ let m=(i-1)%26; s=String.fromCharCode(65+m)+s; i=Math.floor((i-1)/26) }
+  return s;
+}
+function isExcelDate(v){ return typeof v === 'number' && v > 59 && v < 60000 }
+function formatExcelDate(v){
+  try{
+    const d = XLSX.SSF.parse_date_code(v);
+    if(!d) return v;
+    const date = new Date(Date.UTC(d.y, (d.m||1)-1, d.d||1, d.H||0, d.M||0, Math.floor(d.S||0)));
+    return date;
+  }catch(e){ return v }
+}
+function formatCell(v){
+  if(isExcelDate(v)) return formatExcelDate(v);
+  return v;
+}
+function renderOptions(selectEl, options){
+  selectEl.innerHTML = options.map(o => `<option value="${String(o)}">${String(o)}</option>`).join('');
+}
+
+// Rendering tabella -------------------------------------------------------
+function renderTable(headers, rows){                          
+  // Filtra colonne da rimuovere (vuote o da blacklist)
+  headers = headers.filter(h => !shouldDropHeader(h, rows));
+
+  // --- Mostra solo righe dalla data corrente in poi ---
+  const dateHeader = headers.find(h => /^(data|date)$/i.test(String(h).trim()));
+  if (dateHeader) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    rows = rows.filter(r => {
+      const v = r[dateHeader];
+      const d = v instanceof Date ? v : new Date(v);
+      if (isNaN(d)) return false;
+      return d >= today;
+    });
+  }
+  currentHeaders = headers; currentData = rows;
+  // Filtra ricerca
+  const q = searchInput.value.trim().toLowerCase();
+  const filtered = !q ? rows : rows.filter(row => Object.values(row).some(v => toText(v).includes(q)));
+
+  // Ordina
+  if(sortState.key){
+    filtered.sort((a,b)=> cmp(a[sortState.key], b[sortState.key]) * sortState.dir);
+  }
+
+  // Header
+  tHead.innerHTML = '';
+  const trh = document.createElement('tr');
+  headers.forEach(h => {
+    const th = document.createElement('th');
+    th.className = 'sortable';
+    th.innerHTML = `<span>${escapeHtml(h)}</span><span class="chev">${sortIcon(h)}</span>`;
+    th.addEventListener('click', ()=>{
+      if(sortState.key === h){ sortState.dir *= -1 } else { sortState.key = h; sortState.dir = 1 }
+      renderTable(headers, rows);
+    });
+    trh.appendChild(th);
+  });
+  tHead.appendChild(trh);
+  sortHint.classList.toggle('hidden', headers.length === 0);
+
+  // Body
+  tBody.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  filtered.forEach((row)=>{
+    const tr = document.createElement('tr');
+    headers.forEach(h=>{
+      const td = document.createElement('td');
+      const v = row[h];
+      td.textContent = prettyValue(v, h);
+      tr.appendChild(td);
+    });
+    frag.appendChild(tr);
+  });
+  tBody.appendChild(frag);
+
+  rowsCount.textContent = filtered.length ? `${filtered.length} righe visualizzate` : 'Nessun dato da mostrare';
+
+  // Aggiorna select colonna data/ora
+  renderOptions(dateColumnSelect, ['— nessuna —', ...headers]);
+  renderOptions(timeColumnSelect, ['— nessuna —', ...headers]);
+}
+
+function sortIcon(h){
+  if(sortState.key !== h) return '↕';
+  return sortState.dir === 1 ? '↑' : '↓'
+}
+function toText(v){
+  if(v instanceof Date){
+    return v.toISOString().slice(0,10);
+  }
+  return String(v).toLowerCase();
+}
+function cmp(a,b){
+  // Date > number > string
+  if(a instanceof Date && b instanceof Date) return a - b;
+  if(a instanceof Date) return -1;
+  if(b instanceof Date) return 1;
+  const na = Number(a), nb = Number(b);
+  const aNum = !Number.isNaN(na); const bNum = !Number.isNaN(nb);
+  if(aNum && bNum) return na - nb;
+  return String(a).localeCompare(String(b), 'it', {numeric:true, sensitivity:'base'});
+}
+function escapeHtml(s){ return s.replace(/[&<>"']/g, m=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]) ) }
+
+// Valore "carino" per celle (formattazione data/ora)
+function prettyValue(v, header){
+  const dcol = dateColumnSelect.value;
+  const tcol = timeColumnSelect.value;
+  if(v instanceof Date){
+    // Se la colonna è oraria, mostra solo HH:MM
+    if(isLikelyTimeHeader(header)) return fmtTimeFromDate(v);
+    return fmtDateIT(v);
+  }
+  if(typeof v === 'number'){
+    // Excel ore come frazione del giorno (0.375 = 09:00)
+    if(v >= 0 && v < 1) return fmtTimeFromFraction(v);
+  }
+  return String(v);
+}
+
+const TIME_HEADER_RE = /^(ora|orario|dalle|alle|inizio|fine|start|end)$/i;
+function isLikelyTimeHeader(h){ return !!h && TIME_HEADER_RE.test(String(h).trim()); }
+
+function fmtTimeFromFraction(fr){
+  const total = Math.round(fr * 24 * 60); // minuti totali
+  const hh = Math.floor(total / 60);
+  const mm = total % 60;
+  return String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
+}
+function fmtTimeFromDate(d){
+  return String(d.getUTCHours()).padStart(2,'0') + ':' + String(d.getUTCMinutes()).padStart(2,'0');
+}
+// --- Integrazione: evidenzia giornate incomplete 09:00–13:00 e 14:00–18:00 ---
+const DATE_HEADER_RE = /^(data|date)$/i;
+const START_HEADER_RE = /^(dalle|ora ?inizio|inizio|start)$/i;
+const END_HEADER_RE   = /^(alle|ora ?fine|fine|end)$/i;
+
+function autoDetectDateHeader(headers){
+  // priorità: select esplicita, altrimenti per nome
+  const chosen = (dateColumnSelect && dateColumnSelect.value && dateColumnSelect.value !== '— nessuna —')
+      ? dateColumnSelect.value : null;
+  if (chosen && headers.includes(chosen)) return chosen;
+  return headers.find(h => DATE_HEADER_RE.test(String(h))) || null;
+}
+function autoDetectStartHeader(headers){
+  return headers.find(h => START_HEADER_RE.test(String(h))) || null;
+}
+function autoDetectEndHeader(headers){
+  return headers.find(h => END_HEADER_RE.test(String(h))) || null;
+}
+
+// Converte qualsiasi valore orario in minuti da mezzanotte
+function toMinutes(v){
+  // Date -> usa UTC per evitare timezone locali
+  if (v instanceof Date) return v.getUTCHours()*60 + v.getUTCMinutes();
+  if (typeof v === 'number'){
+    // frazione di giorno
+    if (v >= 0 && v <= 1) return Math.round(v*24*60);
+    // numero tipo 900, 1330 -> prova parsing
+    if (v > 59 && v < 2400){
+      const hh = Math.floor(v/100), mm = Math.round(v%100);
+      return hh*60+mm;
+    }
+  }
+  if (typeof v === 'string'){
+    const m = v.trim().match(/^(\d{1,2})[:.](\d{2})/);
+    if (m){ return parseInt(m[1])*60 + parseInt(m[2]); }
+  }
+  return null;
+}
+
+// Merge di intervalli [start,end] in minuti
+function mergeIntervals(intervals){
+  const arr = intervals.filter(iv => iv && iv.start!=null && iv.end!=null && iv.end>iv.start)
+                       .sort((a,b)=> a.start-b.start);
+  const merged = [];
+  for(const iv of arr){
+    if(!merged.length || iv.start > merged[merged.length-1].end){
+      merged.push({start:iv.start, end:iv.end});
+    } else {
+      merged[merged.length-1].end = Math.max(merged[merged.length-1].end, iv.end);
+    }
+  }
+  return merged;
+}
+
+// Verifica copertura due blocchi: [09:00-13:00] e [14:00-18:00]
+function isDayFull(intervals){
+  const merged = mergeIntervals(intervals);
+  const needs = [{start:9*60, end:13*60}, {start:14*60, end:18*60}];
+  // per ogni blocco richiesto, deve esistere un intervallo merged che lo copre interamente
+  return needs.every(req => merged.some(iv => iv.start<=req.start && iv.end>=req.end));
+}
+
+
+function fmtDateIT(d){
+  try{
+    return new Intl.DateTimeFormat('it-IT', {weekday:'short', day:'2-digit', month:'2-digit', year:'numeric'}).format(d);
+  }catch(e){ return d.toISOString().slice(0,10) }
+}
+
+// Import / Export ---------------------------------------------------------
+async function handleFile(file){
+  if(!file) return;
+  if(file.size > 10*1024*1024){ setStatus('File troppo grande (>10MB)','err'); return; }
+  setStatus(`Caricamento: ${file.name}…`);
+  const data = await file.arrayBuffer();
+  workbook = XLSX.read(data, {type:'array'});
+  // Popola select fogli
+  sheetSelect.innerHTML = '';
+  workbook.SheetNames.forEach((name, i)=>{
+  const opt = document.createElement('option');
+  opt.value = name;
+  opt.textContent = `${i+1}. ${name}`;
+  sheetSelect.appendChild(opt);
+});
+
+// Se esiste un foglio chiamato "Fust" (case-insensitive), caricalo per primo
+const defaultSheet = workbook.SheetNames.find(n => n.toLowerCase().includes('fust')) 
+                   || workbook.SheetNames[0];
+sheetSelect.value = defaultSheet;
+loadSheet(defaultSheet);
+
+setStatus(`Pronto: ${file.name}`,'ok');
+
+}
+
+function loadSheet(name){
+  const ws = workbook.Sheets[name];
+  const {headers, rows} = excelToJson(ws);
+  renderTable(headers, rows);
+}
+
+function exportCSV(){
+  if(!currentData.length){ return }
+  const rows = [currentHeaders, ...currentData.map(r=> currentHeaders.map(h=> r[h] instanceof Date ? fmtDateIT(r[h]) : r[h]))];
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(["\ufeff"+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'calendario.csv'; a.click();
+  setTimeout(()=> URL.revokeObjectURL(url), 1500);
+}
+
+// Eventi UI ---------------------------------------------------------------
+fileInput.addEventListener('change', e=> handleFile(e.target.files[0]));
+
+sheetSelect.addEventListener('change', e=> loadSheet(e.target.value));
+searchInput.addEventListener('input', ()=> renderTable(currentHeaders, currentData));
+dateColumnSelect.addEventListener('change', ()=> renderTable(currentHeaders, currentData));
+timeColumnSelect.addEventListener('change', ()=> renderTable(currentHeaders, currentData));
+
+$('#btnClear').addEventListener('click', ()=>{ tHead.innerHTML=''; tBody.innerHTML=''; rowsCount.textContent='—'; setStatus('Nessun file'); })
+$('#btnExportCsv').addEventListener('click', exportCSV);
+$('#btnSample').addEventListener('click', ()=> fileInput.click());
+
+// Suggerimenti iniziali
+setStatus('Carica un file Excel');

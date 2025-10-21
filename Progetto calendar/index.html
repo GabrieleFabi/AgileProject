@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Calendario Scolastico – Importa Excel</title>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- SheetJS per leggere file Excel nel browser -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>Calendario Scolastico – Importa Excel</h1>
+          <div class="sub">Carica un file <strong>.xlsx / .xls / .csv</strong> e visualizza le lezioni in tabella.</div>
+        </div>
+      </div>
+      <div class="badge" id="statusBadge">Nessun file</div>
+    </header>
+
+    <section class="uibox">
+      <div class="card">
+        <div class="inner controls">
+          <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" style="display:none" />
+          <button class="btn" id="btnSample" type="button">Scegli file dal disco</button>
+          <button class="btn ghost" id="btnClear" type="button">Pulisci tabella</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <div class="inner stack">
+            <div class="stack">
+              <label for="sheetSelect">Foglio di lavoro</label>
+              <select id="sheetSelect"></select>
+            </div>
+            <div class="stack">
+              <label for="searchInput">Cerca</label>
+              <input id="searchInput" type="search" placeholder="Cerca in tabella (testo, date, orari)…" />
+            </div>
+            <div class="stack">
+              <label for="dateColumnSelect">Colonna Data (opzionale per formattazione)</label>
+              <select id="dateColumnSelect"></select>
+            </div>
+            <div class="stack">
+              <label for="timeColumnSelect">Colonna Ora (opzionale)</label>
+              <select id="timeColumnSelect"></select>
+            </div>
+            <div class="stack">
+              <button class="btn" id="btnExportCsv" type="button">Esporta CSV</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="inner">
+            <div class="table-wrap">
+              <table id="dataTable" aria-live="polite">
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="footer">
+              <div id="rowsCount">—</div>
+              <div id="sortHint" class="hidden">Suggerimento: clicca sull'intestazione per ordinare ↑↓</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
