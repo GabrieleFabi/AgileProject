@@ -19,7 +19,7 @@
         </div>
       </div>
 
-      <!-- Input file reso globale: serve sia dalla landing che dalla pagina calendario -->
+      <!-- Input file globale (usato dalla landing) -->
       <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" style="display:none" />
 
       <button class="btn ghost" id="btnBack" type="button" style="margin-left:8px;">
@@ -28,12 +28,13 @@
       <div class="badge" id="statusBadge">Nessun file</div>
     </header>
 
-    <!-- Landing: prima pagina con due grandi pulsanti + nuovo pulsante per importare Excel -->
+    <!-- Landing: caricamento file + scelta anno -->
     <section id="landing" class="landing">
       <div class="landing-card">
         <h2>Inizia caricando il file Excel e poi scegli l'Anno</h2>
         <div class="landing-buttons">
           <button class="btn big" id="btnLoadTop" type="button">📄 Carica Excel adesso</button>
+          <button class="btn big ghost" id="btnClearTop" type="button">🧹 Pulisci tabella</button>
         </div>
         <p class="hint">Dopo il caricamento, scegli l’Anno e poi il Corso: il foglio verrà pre-selezionato automaticamente.</p>
 
@@ -63,13 +64,7 @@
 
     <!-- App UI (calendario) -->
     <section id="appSection" class="uibox hidden">
-      <div class="card">
-        <div class="inner controls">
-          <!-- rimane anche qui il bottone per scegliere un file, usa lo stesso #fileInput globale -->
-          <button class="btn" id="btnSample" type="button">Scegli file dal disco</button>
-          <button class="btn ghost" id="btnClear" type="button">Pulisci tabella</button>
-        </div>
-      </div>
+      <!-- RIMOSSO: card vuota con .inner.controls -->
 
       <div class="grid">
         <div class="card">

@@ -3,7 +3,7 @@ const $ = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => [...root.querySelectorAll(sel)];
 const statusBadge = $('#statusBadge');
 const dropZone = $('#dropZone');
-const fileInput = $('#fileInput');           // ora è globale (in header)
+const fileInput = $('#fileInput');           // globale (in header, usato dalla landing)
 const sheetSelect = $('#sheetSelect');
 const searchInput = $('#searchInput');
 const dateColumnSelect = $('#dateColumnSelect');
@@ -33,7 +33,7 @@ const COURSE_TO_SHEET = {
   cyse:  'Cyse2',
   dolc:  'Dolc2',
   fust:  'Fust2',
-  ago:   'AgoD2'
+  ago:   'Ago2'
 };
 
 // --- Filtri colonne da nascondere ---
@@ -376,6 +376,31 @@ function loadSheet(name){
   renderTable(headers, rows);
 }
 
+// --- CLEAR centralizzato -------------------------------------------------
+function clearAll(){
+  // Svuota tabella
+  tHead.innerHTML = '';
+  tBody.innerHTML = '';
+  rowsCount.textContent = '—';
+
+  // Resetta stato
+  currentData = [];
+  currentHeaders = [];
+  sortState = { key: null, dir: 1 };
+  workbook = null;
+
+  // Svuota UI
+  sheetSelect.innerHTML = '';
+  dateColumnSelect.innerHTML = '';
+  timeColumnSelect.innerHTML = '';
+  searchInput.value = '';
+
+  // Fondamentale: svuota il file input
+  fileInput.value = '';
+
+  setStatus('Nessun file');
+}
+
 // --- Navigazione: Anno -> Corso -> Calendario ---------------------------
 function applyYearChoice(year){
   selectedYear = String(year);
@@ -425,34 +450,11 @@ searchInput?.addEventListener('input', ()=> renderTable(currentHeaders, currentD
 dateColumnSelect?.addEventListener('change', ()=> renderTable(currentHeaders, currentData));
 timeColumnSelect?.addEventListener('change', ()=> renderTable(currentHeaders, currentData));
 
-$('#btnClear')?.addEventListener('click', ()=>{
-  tHead.innerHTML = '';
-  tBody.innerHTML = '';
-  rowsCount.textContent = '—';
+// Nuovo: clear dalla landing
+$('#btnClearTop')?.addEventListener('click', clearAll);
 
-  currentData = [];
-  currentHeaders = [];
-  sortState = { key: null, dir: 1 };
-  workbook = null;
-
-  sheetSelect.innerHTML = '';
-  dateColumnSelect.innerHTML = '';
-  timeColumnSelect.innerHTML = '';
-  searchInput.value = '';
-
-  fileInput.value = '';
-
-  setStatus('Nessun file');
-});
-
-// Bottone landing (nuovo) per caricare l’Excel
+// Bottone landing per caricare l’Excel
 $('#btnLoadTop')?.addEventListener('click', ()=>{
-  fileInput.value = '';
-  fileInput.click();
-});
-
-// Bottone già esistente nella pagina calendario: resta invariato
-$('#btnSample')?.addEventListener('click', ()=>{
   fileInput.value = '';
   fileInput.click();
 });
