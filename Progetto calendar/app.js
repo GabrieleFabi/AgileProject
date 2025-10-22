@@ -33,7 +33,7 @@ const COURSE_TO_SHEET = {
   cyse:  'Cyse2',
   dolc:  'Dolc2',
   fust:  'Fust2',
-  ago:   'Ago2'
+  ago:   'AgoD2'
 };
 
 // --- Filtri colonne da nascondere ---
