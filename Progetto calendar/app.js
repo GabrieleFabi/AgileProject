@@ -13,11 +13,15 @@ const tHead = table.tHead || table.createTHead();
 const tBody = table.tBodies[0] || table.createTBody();
 const rowsCount = $('#rowsCount');
 const sortHint = $('#sortHint');
+const landing = $('#landing');
+const appSection = $('#appSection');
+const yearLabel = $('#yearLabel');
 
 let workbook = null;
 let currentData = [];   // array di oggetti {col:val}
 let currentHeaders = [];// array di stringhe
 let sortState = {key:null, dir:1};
+let selectedYear = null; // "1" | "2"
 
 // --- Filtri colonne da nascondere ---
 const DROP_HEADER_RE = /^(colonna|giorno|fust2)$/i;
@@ -38,7 +42,6 @@ function shouldDropHeader(h, rows){
   // elimina colonne completamente vuote
   return rows.every(r => isEmptyCell(r[h]));
 }
-
 
 function setStatus(text, tone="info"){
   statusBadge.textContent = text;
@@ -98,7 +101,7 @@ function renderOptions(selectEl, options){
 }
 
 // Rendering tabella -------------------------------------------------------
-function renderTable(headers, rows){                          
+function renderTable(headers, rows){
   // Filtra colonne da rimuovere (vuote o da blacklist)
   headers = headers.filter(h => !shouldDropHeader(h, rows));
 
@@ -174,7 +177,6 @@ function renderTable(headers, rows){
     });
   }
 
-
   // Evidenzia tutti i record della giornata se copertura < 8 ore
   const _dateH = autoDetectDateHeader(headers);
   const _startH = autoDetectStartHeader(headers);
@@ -206,7 +208,6 @@ function renderTable(headers, rows){
       }
     }
   }
-
 
   rowsCount.textContent = filtered.length ? `${filtered.length} righe visualizzate` : 'Nessun dato da mostrare';
 
@@ -342,7 +343,6 @@ function coveredMinutesWithinNeeds(intervals){
   return total;
 }
 
-
 function fmtDateIT(d){
   try{
     return new Intl.DateTimeFormat('it-IT', {weekday:'short', day:'2-digit', month:'2-digit', year:'numeric'}).format(d);
@@ -359,21 +359,21 @@ async function handleFile(file){
   // Popola select fogli
   sheetSelect.innerHTML = '';
   workbook.SheetNames.forEach((name, i)=>{
-  const opt = document.createElement('option');
-  opt.value = name;
-  opt.textContent = `${i+1}. ${name}`;
-  sheetSelect.appendChild(opt);
-});
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = `${i+1}. ${name}`;
+    sheetSelect.appendChild(opt);
+  });
 
-// Se esiste un foglio chiamato "Fust" (case-insensitive), caricalo per primo
-const defaultSheet = workbook.SheetNames.find(n => n.toLowerCase().includes('fust')) 
+  // Se esiste un foglio chiamato "Fust" (case-insensitive), caricalo per primo
+  const defaultSheet = workbook.SheetNames.find(n => n.toLowerCase().includes('fust'))
                    || workbook.SheetNames[0];
-sheetSelect.value = defaultSheet;
-loadSheet(defaultSheet);
+  sheetSelect.value = defaultSheet;
+  loadSheet(defaultSheet);
 
-setStatus(`Pronto: ${file.name}`,'ok');
+  setStatus(`Pronto: ${file.name}`,'ok');
 
-fileInput.value = ''; // permette di ricaricare anche lo stesso file dopo
+  fileInput.value = ''; // permette di ricaricare anche lo stesso file dopo
 }
 
 function loadSheet(name){
@@ -382,16 +382,30 @@ function loadSheet(name){
   renderTable(headers, rows);
 }
 
+// --- Landing logic -------------------------------------------------------
+function applyYearChoice(year){
+  selectedYear = String(year);
+  localStorage.setItem('cal-anno', selectedYear);
+  yearLabel.textContent = `Anno ${selectedYear}`;
+  landing.classList.add('hidden');
+  appSection.classList.remove('hidden');
+}
 
 // Eventi UI ---------------------------------------------------------------
-fileInput.addEventListener('change', e=> handleFile(e.target.files[0]));
+fileInput?.addEventListener('change', e=> handleFile(e.target.files[0]));
+$('#btnBack')?.addEventListener('click', () => {
+  // Torna alla landing
+  localStorage.removeItem('cal-anno');
+  landing.classList.remove('hidden');
+  appSection.classList.add('hidden');
+  yearLabel.textContent = 'Scegli un anno per iniziare';
+});
+sheetSelect?.addEventListener('change', e=> loadSheet(e.target.value));
+searchInput?.addEventListener('input', ()=> renderTable(currentHeaders, currentData));
+dateColumnSelect?.addEventListener('change', ()=> renderTable(currentHeaders, currentData));
+timeColumnSelect?.addEventListener('change', ()=> renderTable(currentHeaders, currentData));
 
-sheetSelect.addEventListener('change', e=> loadSheet(e.target.value));
-searchInput.addEventListener('input', ()=> renderTable(currentHeaders, currentData));
-dateColumnSelect.addEventListener('change', ()=> renderTable(currentHeaders, currentData));
-timeColumnSelect.addEventListener('change', ()=> renderTable(currentHeaders, currentData));
-
-$('#btnClear').addEventListener('click', ()=>{
+$('#btnClear')?.addEventListener('click', ()=>{
   // Svuota tabella
   tHead.innerHTML = '';
   tBody.innerHTML = '';
@@ -415,13 +429,25 @@ $('#btnClear').addEventListener('click', ()=>{
   setStatus('Nessun file');
 });
 
-
-
-$('#btnSample').addEventListener('click', ()=>{
+$('#btnSample')?.addEventListener('click', ()=>{
   fileInput.value = ''; // permette di riselezionare anche lo stesso file
   fileInput.click();
 });
 
+// Click su pulsanti Anno 1 / Anno 2
+$$('.landing [data-anno]').forEach(btn => {
+  btn.addEventListener('click', () => applyYearChoice(btn.dataset.anno));
+});
 
-// Suggerimenti iniziali
-setStatus('Carica un file Excel');
+// All'avvio: se ho già una scelta salvata, riapri direttamente l'app
+(function init(){
+  const saved = localStorage.getItem('cal-anno');
+  if(saved === '1' || saved === '2'){
+    applyYearChoice(saved);
+  } else {
+    // landing visibile, testo header
+    yearLabel.textContent = 'Scegli un anno per iniziare';
+  }
+  setStatus('Carica un file Excel');
+})();
+

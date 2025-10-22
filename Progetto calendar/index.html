@@ -14,14 +14,30 @@
       <div class="title">
         <div class="logo" aria-hidden="true"></div>
         <div>
-          <h1>Calendario Scolastico – Importa Excel</h1>
-          <div class="sub">Carica un file <strong>.xlsx / .xls / .csv</strong> e visualizza le lezioni in tabella.</div>
+          <h1>Calendario Scolastico</h1>
+          <div class="sub"><span id="yearLabel">Scegli un anno per iniziare</span></div>
         </div>
       </div>
+      <button class="btn ghost" id="btnBack" type="button" style="margin-left:8px;">
+        ⬅️ Torna alla scelta anno
+      </button>
       <div class="badge" id="statusBadge">Nessun file</div>
     </header>
 
-    <section class="uibox">
+    <!-- Landing: prima pagina con due grandi pulsanti -->
+    <section id="landing" class="landing">
+      <div class="landing-card">
+        <h2>Seleziona l'Anno</h2>
+        <div class="landing-buttons">
+          <button class="btn big primary" data-anno="1">Anno 1</button>
+          <button class="btn big primary" data-anno="2">Anno 2</button>
+        </div>
+        <p class="hint">Potrai cambiare anno in qualsiasi momento dal badge in alto.</p>
+      </div>
+    </section>
+
+    <!-- App UI: nascosta finché non si sceglie l'anno -->
+    <section id="appSection" class="uibox hidden">
       <div class="card">
         <div class="inner controls">
           <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" style="display:none" />
