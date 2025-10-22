@@ -17,8 +17,6 @@ const landing = $('#landing');
 const appSection = $('#appSection');
 const yearLabel = $('#yearLabel');
 const courseSection = $('#courseSection');
-const courseButtonsWrap = $('#courseButtons');
-const courseHint = $('#courseHint');
 
 let workbook = null;
 let currentData = [];
@@ -26,6 +24,10 @@ let currentHeaders = [];
 let sortState = {key:null, dir:1};
 let selectedYear = null;
 let pendingSheetName = null;
+
+// NEW: copertura giornaliera precomputata
+let dayCoverage = new Map();         // key (YYYY-MM-DD) -> minuti
+let coverageDateHeader = null;       // nome colonna data usato per calcolo
 
 const COURSE_TO_SHEET = {
   front: 'Frot2',
@@ -44,13 +46,11 @@ function isEmptyCell(v){
   const s = String(v).trim();
   return s === '' || s === '-' || s === '—';
 }
-
 function shouldDropHeader(h, rows){
   if (!h) return true;
   if (DROP_HEADER_RE.test(String(h).trim())) return true;
   return rows.every(r => isEmptyCell(r[h]));
 }
-
 function setStatus(text, tone="info"){
   statusBadge.textContent = text;
   const color = tone === 'ok' ? 'var(--accent)' : tone === 'err' ? 'var(--danger)' : 'var(--brand)';
@@ -83,29 +83,134 @@ function excelToJson(ws){
   });
   return {headers, rows};
 }
-function sanitizeHeader(h){
-  return h.trim().replace(/\s+/g,' ').replace(/[\n\r]+/g,' ').replace(/[<>"']/g,'').slice(0,80);
-}
-function colName(i){
-  let s=""; i++;
-  while(i>0){ let m=(i-1)%26; s=String.fromCharCode(65+m)+s; i=Math.floor((i-1)/26) }
-  return s;
-}
+function sanitizeHeader(h){ return h.trim().replace(/\s+/g,' ').replace(/[\n\r]+/g,' ').replace(/[<>"']/g,'').slice(0,80); }
+function colName(i){ let s=""; i++; while(i>0){ let m=(i-1)%26; s=String.fromCharCode(65+m)+s; i=Math.floor((i-1)/26) } return s; }
 function isExcelDate(v){ return typeof v === 'number' && v > 59 && v < 60000 }
 function formatExcelDate(v){
   try{
     const d = XLSX.SSF.parse_date_code(v);
     if(!d) return v;
-    const date = new Date(Date.UTC(d.y, (d.m||1)-1, d.d||1, d.H||0, d.M||0, Math.floor(d.S||0)));
-    return date;
+    return new Date(Date.UTC(d.y, (d.m||1)-1, d.d||1, d.H||0, d.M||0, Math.floor(d.S||0)));
   }catch(e){ return v }
 }
-function formatCell(v){
-  if(isExcelDate(v)) return formatExcelDate(v);
-  return v;
-}
+function formatCell(v){ if(isExcelDate(v)) return formatExcelDate(v); return v; }
 function renderOptions(selectEl, options){
   selectEl.innerHTML = options.map(o => `<option value="${String(o)}">${String(o)}</option>`).join('');
+}
+
+// --- Helpers date/time ---------------------------------------------------
+const DATE_HEADER_RE = /^(data|date)$/i;
+const START_HEADER_RE = /^(dalle|ora ?inizio|inizio|start)$/i;
+const END_HEADER_RE   = /^(alle|ora ?fine|fine|end)$/i;
+const TIME_HEADER_RE  = /^(ora|orario|dalle|alle|inizio|fine|start|end)$/i;
+
+function autoDetectDateHeader(headers){
+  const chosen = (dateColumnSelect && dateColumnSelect.value && dateColumnSelect.value !== '— nessuna —')
+      ? dateColumnSelect.value : null;
+  if (chosen && headers.includes(chosen)) return chosen;
+  return headers.find(h => DATE_HEADER_RE.test(String(h))) || null;
+}
+function autoDetectStartHeader(headers){
+  return headers.find(h => START_HEADER_RE.test(String(h))) || null;
+}
+function autoDetectEndHeader(headers){
+  return headers.find(h => END_HEADER_RE.test(String(h))) || null;
+}
+function toMinutes(v){
+  if (v instanceof Date) return v.getUTCHours()*60 + v.getUTCMinutes();
+  if (typeof v === 'number'){
+    if (v >= 0 && v <= 1) return Math.round(v*24*60);
+    if (v > 59 && v < 2400){
+      const hh = Math.floor(v/100), mm = Math.round(v%100);
+      return hh*60+mm;
+    }
+  }
+  if (typeof v === 'string'){
+    const m = v.trim().match(/^(\d{1,2})[:.](\d{2})/);
+    if (m){ return parseInt(m[1])*60 + parseInt(m[2]); }
+  }
+  return null;
+}
+function mergeIntervals(intervals){
+  const arr = intervals.filter(iv => iv && iv.start!=null && iv.end!=null && iv.end>iv.start)
+                       .sort((a,b)=> a.start-b.start);
+  const merged = [];
+  for(const iv of arr){
+    if(!merged.length || iv.start > merged[merged.length-1].end){
+      merged.push({start:iv.start, end:iv.end});
+    } else {
+      merged[merged.length-1].end = Math.max(merged[merged.length-1].end, iv.end);
+    }
+  }
+  return merged;
+}
+function coveredMinutesWithinNeeds(intervals){
+  const merged = mergeIntervals(intervals);
+  const needs = [{start:9*60, end:13*60}, {start:14*60, end:18*60}];
+  let total = 0;
+  for(const need of needs){
+    for(const iv of merged){
+      const start = Math.max(need.start, iv.start);
+      const end = Math.min(need.end, iv.end);
+      if(end > start) total += (end - start);
+    }
+  }
+  return total;
+}
+function fmtDateIT(d){ try{ return new Intl.DateTimeFormat('it-IT', {weekday:'short', day:'2-digit', month:'2-digit', year:'numeric'}).format(d); }catch(e){ return d.toISOString().slice(0,10) } }
+function isLikelyTimeHeader(h){ return !!h && TIME_HEADER_RE.test(String(h).trim()); }
+function fmtTimeFromFraction(fr){ const total = Math.round(fr * 24 * 60); const hh = Math.floor(total / 60); const mm = total % 60; return String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0'); }
+function fmtTimeFromDate(d){ return String(d.getUTCHours()).padStart(2,'0') + ':' + String(d.getUTCMinutes()).padStart(2,'0'); }
+function prettyValue(v, header){
+  if(v instanceof Date){ if(isLikelyTimeHeader(header)) return fmtTimeFromDate(v); return fmtDateIT(v); }
+  if(typeof v === 'number'){ if(v >= 0 && v < 1) return fmtTimeFromFraction(v); }
+  return String(v);
+}
+function toText(v){ if(v instanceof Date){ return v.toISOString().slice(0,10); } return String(v).toLowerCase(); }
+function cmp(a,b){
+  if(a instanceof Date && b instanceof Date) return a - b;
+  if(a instanceof Date) return -1;
+  if(b instanceof Date) return 1;
+  const na = Number(a), nb = Number(b);
+  const aNum = !Number.isNaN(na); const bNum = !Number.isNaN(nb);
+  if(aNum && bNum) return na - nb;
+  return String(a).localeCompare(String(b), 'it', {numeric:true, sensitivity:'base'});
+}
+function escapeHtml(s){ return s.replace(/[&<>"']/g, m=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]) ) }
+function dateKeyFromVal(v){
+  const d = (v instanceof Date) ? v : (typeof v === 'string' ? new Date(v) : null);
+  if(d && !isNaN(d)) return d.toISOString().slice(0,10);
+  return String(v);
+}
+
+// --- PRECOMPUTO: copertura giornaliera sull’intero dataset --------------
+function computeDayCoverage(headers, rows){
+  dayCoverage = new Map();
+  coverageDateHeader = null;
+
+  const dateH = autoDetectDateHeader(headers);
+  const startH = autoDetectStartHeader(headers);
+  const endH   = autoDetectEndHeader(headers);
+  if(!(dateH && startH && endH)) return; // non posso calcolare
+
+  coverageDateHeader = dateH;
+
+  const map = new Map(); // key -> {intervals:[]}
+  rows.forEach(r=>{
+    const dVal = r[dateH];
+    const key = dateKeyFromVal(dVal);
+    const sMin = toMinutes(r[startH]);
+    const eMin = toMinutes(r[endH]);
+    if(sMin!=null && eMin!=null && eMin>sMin){
+      if(!map.has(key)) map.set(key, {intervals:[]});
+      map.get(key).intervals.push({start:sMin, end:eMin});
+    }
+  });
+
+  for(const [k, obj] of map.entries()){
+    const minutes = coveredMinutesWithinNeeds(obj.intervals);
+    dayCoverage.set(k, minutes);
+  }
 }
 
 // Rendering tabella -------------------------------------------------------
@@ -163,7 +268,7 @@ function renderTable(headers, rows){
   });
   tBody.appendChild(frag);
 
-  // Separatore tra date diverse
+  // Separatore tra date diverse (sul filtrato)
   const _dateHeaderForSep = autoDetectDateHeader(headers);
   if(_dateHeaderForSep){
     const createdRows2 = [...tBody.querySelectorAll('tr')];
@@ -171,8 +276,7 @@ function renderTable(headers, rows){
     createdRows2.forEach((tr, idx)=>{
       const r = filtered[idx];
       const dVal = r[_dateHeaderForSep];
-      const dateObj = (dVal instanceof Date) ? dVal : (typeof dVal === 'string' && dVal) ? new Date(dVal) : null;
-      const key = dateObj ? dateObj.toISOString().slice(0,10) : String(dVal);
+      const key = dateKeyFromVal(dVal);
       if(idx>0 && key !== prevKey){
         tr.classList.add('date-sep');
       }else{
@@ -182,62 +286,26 @@ function renderTable(headers, rows){
     });
   }
 
-  // Evidenziazione minuti coperti nella giornata
-  const _dateH = autoDetectDateHeader(headers);
-  const _startH = autoDetectStartHeader(headers);
-  const _endH = autoDetectEndHeader(headers);
-  const dateIdx = _dateH ? headers.indexOf(_dateH) : -1;   // indice colonna data
-  if(_dateH && _startH && _endH){
+  // Evidenziazione basata su PRECOMPUTO, non sul filtrato
+  if (coverageDateHeader){
+    const dateIdxInRendered = headers.indexOf(coverageDateHeader); // dove sta la data nella tabella corrente
     const createdRows = [...tBody.querySelectorAll('tr')];
-    const map = new Map();
     createdRows.forEach((tr, idx)=>{
       const r = filtered[idx];
-      const dVal = r[_dateH];
-      const sVal = r[_startH];
-      const eVal = r[_endH];
-      const dateObj = (dVal instanceof Date) ? dVal : (typeof dVal === 'string' && dVal) ? new Date(dVal) : null;
-      const key = dateObj ? dateObj.toISOString().slice(0,10) : String(dVal);
-      if(!map.has(key)) map.set(key, {intervals:[], rows:[]});
-      map.get(key).rows.push(tr);
-      const sMin = toMinutes(sVal);
-      const eMin = toMinutes(eVal);
-      if(sMin!=null && eMin!=null && eMin>sMin){
-        map.get(key).intervals.push({start:sMin, end:eMin});
+      const key = dateKeyFromVal(r[coverageDateHeader]);
+      const minutes = dayCoverage.get(key) || 0;
+
+      // reset
+      tr.classList.remove('day-short');
+      if (dateIdxInRendered >= 0) tr.children[dateIdxInRendered]?.classList.remove('date-red');
+
+      if (minutes <= 240){
+        tr.classList.add('day-short');
+        if (dateIdxInRendered >= 0) tr.children[dateIdxInRendered]?.classList.add('date-red');
+      } else if (minutes < 480){
+        tr.classList.add('day-short');
       }
     });
-
-    for (const [k, grp] of map.entries()){
-      const minutes = coveredMinutesWithinNeeds(grp.intervals);
-
-      // Reset classi per sicurezza
-      grp.rows.forEach(tr=>{
-        tr.classList.remove('day-short');
-        if (dateIdx >= 0) {
-          const td = tr.children[dateIdx];
-          if (td) td.classList.remove('date-red');
-        }
-      });
-
-      if (minutes <= 240) {
-        // ≤ 4h: riga arancione + data in rosso
-        grp.rows.forEach(tr=>{
-          tr.classList.add('day-short');
-          if (dateIdx >= 0) {
-            const td = tr.children[dateIdx];
-            if (td) td.classList.add('date-red');
-          }
-        });
-      } else if (minutes < 480) {
-        // < 8h: solo arancione
-        grp.rows.forEach(tr=>{
-          tr.classList.add('day-short');
-          if (dateIdx >= 0) {
-            const td = tr.children[dateIdx];
-            if (td) td.classList.remove('date-red');
-          }
-        });
-      } // >= 8h: niente classi
-    }
   }
 
   rowsCount.textContent = filtered.length ? `${filtered.length} righe visualizzate` : 'Nessun dato da mostrare';
@@ -246,119 +314,9 @@ function renderTable(headers, rows){
   renderOptions(timeColumnSelect, ['— nessuna —', ...headers]);
 }
 
-function sortIcon(h){
-  if(sortState.key !== h) return '↕';
-  return sortState.dir === 1 ? '↑' : '↓'
-}
-function toText(v){
-  if(v instanceof Date){
-    return v.toISOString().slice(0,10);
-  }
-  return String(v).toLowerCase();
-}
-function cmp(a,b){
-  if(a instanceof Date && b instanceof Date) return a - b;
-  if(a instanceof Date) return -1;
-  if(b instanceof Date) return 1;
-  const na = Number(a), nb = Number(b);
-  const aNum = !Number.isNaN(na); const bNum = !Number.isNaN(nb);
-  if(aNum && bNum) return na - nb;
-  return String(a).localeCompare(String(b), 'it', {numeric:true, sensitivity:'base'});
-}
-function escapeHtml(s){ return s.replace(/[&<>"']/g, m=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]) ) }
+function sortIcon(h){ if(sortState.key !== h) return '↕'; return sortState.dir === 1 ? '↑' : '↓' }
 
-function prettyValue(v, header){
-  if(v instanceof Date){
-    if(isLikelyTimeHeader(header)) return fmtTimeFromDate(v);
-    return fmtDateIT(v);
-  }
-  if(typeof v === 'number'){
-    if(v >= 0 && v < 1) return fmtTimeFromFraction(v);
-  }
-  return String(v);
-}
-
-const TIME_HEADER_RE = /^(ora|orario|dalle|alle|inizio|fine|start|end)$/i;
-function isLikelyTimeHeader(h){ return !!h && TIME_HEADER_RE.test(String(h).trim()); }
-
-function fmtTimeFromFraction(fr){
-  const total = Math.round(fr * 24 * 60);
-  const hh = Math.floor(total / 60);
-  const mm = total % 60;
-  return String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
-}
-function fmtTimeFromDate(d){
-  return String(d.getUTCHours()).padStart(2,'0') + ':' + String(d.getUTCMinutes()).padStart(2,'0');
-}
-
-const DATE_HEADER_RE = /^(data|date)$/i;
-const START_HEADER_RE = /^(dalle|ora ?inizio|inizio|start)$/i;
-const END_HEADER_RE   = /^(alle|ora ?fine|fine|end)$/i;
-
-function autoDetectDateHeader(headers){
-  const chosen = (dateColumnSelect && dateColumnSelect.value && dateColumnSelect.value !== '— nessuna —')
-      ? dateColumnSelect.value : null;
-  if (chosen && headers.includes(chosen)) return chosen;
-  return headers.find(h => DATE_HEADER_RE.test(String(h))) || null;
-}
-function autoDetectStartHeader(headers){
-  return headers.find(h => START_HEADER_RE.test(String(h))) || null;
-}
-function autoDetectEndHeader(headers){
-  return headers.find(h => END_HEADER_RE.test(String(h))) || null;
-}
-
-function toMinutes(v){
-  if (v instanceof Date) return v.getUTCHours()*60 + v.getUTCMinutes();
-  if (typeof v === 'number'){
-    if (v >= 0 && v <= 1) return Math.round(v*24*60);
-    if (v > 59 && v < 2400){
-      const hh = Math.floor(v/100), mm = Math.round(v%100);
-      return hh*60+mm;
-    }
-  }
-  if (typeof v === 'string'){
-    const m = v.trim().match(/^(\d{1,2})[:.](\d{2})/);
-    if (m){ return parseInt(m[1])*60 + parseInt(m[2]); }
-  }
-  return null;
-}
-
-function mergeIntervals(intervals){
-  const arr = intervals.filter(iv => iv && iv.start!=null && iv.end!=null && iv.end>iv.start)
-                       .sort((a,b)=> a.start-b.start);
-  const merged = [];
-  for(const iv of arr){
-    if(!merged.length || iv.start > merged[merged.length-1].end){
-      merged.push({start:iv.start, end:iv.end});
-    } else {
-      merged[merged.length-1].end = Math.max(merged[merged.length-1].end, iv.end);
-    }
-  }
-  return merged;
-}
-
-function coveredMinutesWithinNeeds(intervals){
-  const merged = mergeIntervals(intervals);
-  const needs = [{start:9*60, end:13*60}, {start:14*60, end:18*60}];
-  let total = 0;
-  for(const need of needs){
-    for(const iv of merged){
-      const start = Math.max(need.start, iv.start);
-      const end = Math.min(need.end, iv.end);
-      if(end > start) total += (end - start);
-    }
-  }
-  return total;
-}
-
-function fmtDateIT(d){
-  try{
-    return new Intl.DateTimeFormat('it-IT', {weekday:'short', day:'2-digit', month:'2-digit', year:'numeric'}).format(d);
-  }catch(e){ return d.toISOString().slice(0,10) }
-}
-
-// Import ---------------------------------------------------------
+// Import, caricamento e navigazione --------------------------------------
 async function handleFile(file){
   if(!file) return;
   if(file.size > 10*1024*1024){ setStatus('File troppo grande (>10MB)','err'); return; }
@@ -391,6 +349,10 @@ async function handleFile(file){
 function loadSheet(name){
   const ws = workbook.Sheets[name];
   const {headers, rows} = excelToJson(ws);
+
+  // NEW: calcolo una volta sull'intero dataset
+  computeDayCoverage(headers, rows);
+
   renderTable(headers, rows);
 }
 
@@ -405,6 +367,10 @@ function clearAll(){
   sortState = { key: null, dir: 1 };
   workbook = null;
 
+  // reset precomputo
+  dayCoverage = new Map();
+  coverageDateHeader = null;
+
   sheetSelect.innerHTML = '';
   dateColumnSelect.innerHTML = '';
   timeColumnSelect.innerHTML = '';
@@ -414,7 +380,7 @@ function clearAll(){
   setStatus('Nessun file');
 }
 
-// Navigazione -----------------------------------------------------
+// Anno / corso ----------------------------------------------------
 function applyYearChoice(year){
   selectedYear = String(year);
   localStorage.setItem('cal-anno', selectedYear);
