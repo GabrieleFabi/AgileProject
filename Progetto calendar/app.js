@@ -373,6 +373,7 @@ loadSheet(defaultSheet);
 
 setStatus(`Pronto: ${file.name}`,'ok');
 
+fileInput.value = ''; // permette di ricaricare anche lo stesso file dopo
 }
 
 function loadSheet(name){
@@ -399,9 +400,38 @@ searchInput.addEventListener('input', ()=> renderTable(currentHeaders, currentDa
 dateColumnSelect.addEventListener('change', ()=> renderTable(currentHeaders, currentData));
 timeColumnSelect.addEventListener('change', ()=> renderTable(currentHeaders, currentData));
 
-$('#btnClear').addEventListener('click', ()=>{ tHead.innerHTML=''; tBody.innerHTML=''; rowsCount.textContent='—'; setStatus('Nessun file'); })
+$('#btnClear').addEventListener('click', ()=>{
+  // Svuota tabella
+  tHead.innerHTML = '';
+  tBody.innerHTML = '';
+  rowsCount.textContent = '—';
+
+  // Resetta stato
+  currentData = [];
+  currentHeaders = [];
+  sortState = { key: null, dir: 1 };
+  workbook = null;
+
+  // Svuota UI
+  sheetSelect.innerHTML = '';
+  dateColumnSelect.innerHTML = '';
+  timeColumnSelect.innerHTML = '';
+  searchInput.value = '';
+
+  // Fondamentale: svuota il file input
+  fileInput.value = '';
+
+  setStatus('Nessun file');
+});
+
+
 $('#btnExportCsv').addEventListener('click', exportCSV);
-$('#btnSample').addEventListener('click', ()=> fileInput.click());
+
+$('#btnSample').addEventListener('click', ()=>{
+  fileInput.value = ''; // permette di riselezionare anche lo stesso file
+  fileInput.click();
+});
+
 
 // Suggerimenti iniziali
 setStatus('Carica un file Excel');
