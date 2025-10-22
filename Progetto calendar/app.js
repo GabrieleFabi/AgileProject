@@ -3,7 +3,7 @@ const $ = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => [...root.querySelectorAll(sel)];
 const statusBadge = $('#statusBadge');
 const dropZone = $('#dropZone');
-const fileInput = $('#fileInput');           // globale (in header, usato dalla landing)
+const fileInput = $('#fileInput');
 const sheetSelect = $('#sheetSelect');
 const searchInput = $('#searchInput');
 const dateColumnSelect = $('#dateColumnSelect');
@@ -21,13 +21,12 @@ const courseButtonsWrap = $('#courseButtons');
 const courseHint = $('#courseHint');
 
 let workbook = null;
-let currentData = [];   // array di oggetti {col:val}
-let currentHeaders = [];// array di stringhe
+let currentData = [];
+let currentHeaders = [];
 let sortState = {key:null, dir:1};
-let selectedYear = null; // "1" | "2"
-let pendingSheetName = null; // quando scelgo un corso prima di caricare il file
+let selectedYear = null;
+let pendingSheetName = null;
 
-// Mappa corsi -> fogli anno 2
 const COURSE_TO_SHEET = {
   front: 'Frot2',
   cyse:  'Cyse2',
@@ -36,7 +35,6 @@ const COURSE_TO_SHEET = {
   ago:   'Ago2'
 };
 
-// --- Filtri colonne da nascondere ---
 const DROP_HEADER_RE = /^(colonna|giorno|fust2)$/i;
 
 function isEmptyCell(v){
@@ -114,7 +112,6 @@ function renderOptions(selectEl, options){
 function renderTable(headers, rows){
   headers = headers.filter(h => !shouldDropHeader(h, rows));
 
-  // Mostra solo righe dalla data corrente in poi
   const dateHeader = headers.find(h => /^(data|date)$/i.test(String(h).trim()));
   if (dateHeader) {
     const today = new Date(); today.setHours(0,0,0,0);
@@ -185,10 +182,11 @@ function renderTable(headers, rows){
     });
   }
 
-  // Evidenzia record di giornate con copertura < 8h
+  // Evidenziazione minuti coperti nella giornata
   const _dateH = autoDetectDateHeader(headers);
   const _startH = autoDetectStartHeader(headers);
   const _endH = autoDetectEndHeader(headers);
+  const dateIdx = _dateH ? headers.indexOf(_dateH) : -1;   // indice colonna data
   if(_dateH && _startH && _endH){
     const createdRows = [...tBody.querySelectorAll('tr')];
     const map = new Map();
@@ -207,19 +205,43 @@ function renderTable(headers, rows){
         map.get(key).intervals.push({start:sMin, end:eMin});
       }
     });
-    for(const [k, grp] of map.entries()){
+
+    for (const [k, grp] of map.entries()){
       const minutes = coveredMinutesWithinNeeds(grp.intervals);
-      if(minutes < 480){
-        grp.rows.forEach(tr => tr.classList.add('day-short'));
-      }else{
-        grp.rows.forEach(tr => tr.classList.remove('day-short'));
-      }
+
+      // Reset classi per sicurezza
+      grp.rows.forEach(tr=>{
+        tr.classList.remove('day-short');
+        if (dateIdx >= 0) {
+          const td = tr.children[dateIdx];
+          if (td) td.classList.remove('date-red');
+        }
+      });
+
+      if (minutes <= 240) {
+        // ≤ 4h: riga arancione + data in rosso
+        grp.rows.forEach(tr=>{
+          tr.classList.add('day-short');
+          if (dateIdx >= 0) {
+            const td = tr.children[dateIdx];
+            if (td) td.classList.add('date-red');
+          }
+        });
+      } else if (minutes < 480) {
+        // < 8h: solo arancione
+        grp.rows.forEach(tr=>{
+          tr.classList.add('day-short');
+          if (dateIdx >= 0) {
+            const td = tr.children[dateIdx];
+            if (td) td.classList.remove('date-red');
+          }
+        });
+      } // >= 8h: niente classi
     }
   }
 
   rowsCount.textContent = filtered.length ? `${filtered.length} righe visualizzate` : 'Nessun dato da mostrare';
 
-  // Aggiorna select colonna data/ora
   renderOptions(dateColumnSelect, ['— nessuna —', ...headers]);
   renderOptions(timeColumnSelect, ['— nessuna —', ...headers]);
 }
@@ -245,7 +267,6 @@ function cmp(a,b){
 }
 function escapeHtml(s){ return s.replace(/[&<>"']/g, m=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]) ) }
 
-// Valore "carino" per celle (formattazione data/ora)
 function prettyValue(v, header){
   if(v instanceof Date){
     if(isLikelyTimeHeader(header)) return fmtTimeFromDate(v);
@@ -269,6 +290,7 @@ function fmtTimeFromFraction(fr){
 function fmtTimeFromDate(d){
   return String(d.getUTCHours()).padStart(2,'0') + ':' + String(d.getUTCMinutes()).padStart(2,'0');
 }
+
 const DATE_HEADER_RE = /^(data|date)$/i;
 const START_HEADER_RE = /^(dalle|ora ?inizio|inizio|start)$/i;
 const END_HEADER_RE   = /^(alle|ora ?fine|fine|end)$/i;
@@ -344,7 +366,6 @@ async function handleFile(file){
   const data = await file.arrayBuffer();
   workbook = XLSX.read(data, {type:'array'});
 
-  // Popola select fogli
   sheetSelect.innerHTML = '';
   workbook.SheetNames.forEach((name, i)=>{
     const opt = document.createElement('option');
@@ -353,12 +374,10 @@ async function handleFile(file){
     sheetSelect.appendChild(opt);
   });
 
-  // Se ho una richiesta specifica da "selezione corso" e il foglio esiste, usa quella.
   let defaultSheet = null;
   if (pendingSheetName && workbook.SheetNames.includes(pendingSheetName)) {
     defaultSheet = pendingSheetName;
   } else {
-    // fallback: un foglio che contiene "fust", altrimenti il primo
     defaultSheet = workbook.SheetNames.find(n => n.toLowerCase().includes('fust'))
                    || workbook.SheetNames[0];
   }
@@ -366,8 +385,7 @@ async function handleFile(file){
   loadSheet(defaultSheet);
 
   setStatus(`Pronto: ${file.name}`,'ok');
-
-  fileInput.value = ''; // permette di ricaricare anche lo stesso file dopo
+  fileInput.value = '';
 }
 
 function loadSheet(name){
@@ -376,32 +394,27 @@ function loadSheet(name){
   renderTable(headers, rows);
 }
 
-// --- CLEAR centralizzato -------------------------------------------------
+// CLEAR -----------------------------------------------------------
 function clearAll(){
-  // Svuota tabella
   tHead.innerHTML = '';
   tBody.innerHTML = '';
   rowsCount.textContent = '—';
 
-  // Resetta stato
   currentData = [];
   currentHeaders = [];
   sortState = { key: null, dir: 1 };
   workbook = null;
 
-  // Svuota UI
   sheetSelect.innerHTML = '';
   dateColumnSelect.innerHTML = '';
   timeColumnSelect.innerHTML = '';
   searchInput.value = '';
 
-  // Fondamentale: svuota il file input
   fileInput.value = '';
-
   setStatus('Nessun file');
 }
 
-// --- Navigazione: Anno -> Corso -> Calendario ---------------------------
+// Navigazione -----------------------------------------------------
 function applyYearChoice(year){
   selectedYear = String(year);
   localStorage.setItem('cal-anno', selectedYear);
@@ -416,7 +429,7 @@ function applyYearChoice(year){
     ? 'Scegli un corso per aprire il calendario (foglio pre-selezionato).'
     : 'Per l’Anno 1 non è disponibile il calendario: i bottoni non sono attivi.';
   $$('#courseButtons [data-course]').forEach(btn=>{
-    btn.disabled = !isYear2; // anno 1: disabilitati
+    btn.disabled = !isYear2;
   });
 }
 
@@ -428,7 +441,6 @@ function goToCalendarWithCourse(courseKey){
   courseSection.classList.add('hidden');
   appSection.classList.remove('hidden');
 
-  // Se il file è già stato caricato dalla landing, seleziona subito il foglio
   if(workbook && pendingSheetName && workbook.SheetNames.includes(pendingSheetName)){
     sheetSelect.value = pendingSheetName;
     loadSheet(pendingSheetName);
@@ -450,21 +462,14 @@ searchInput?.addEventListener('input', ()=> renderTable(currentHeaders, currentD
 dateColumnSelect?.addEventListener('change', ()=> renderTable(currentHeaders, currentData));
 timeColumnSelect?.addEventListener('change', ()=> renderTable(currentHeaders, currentData));
 
-// Nuovo: clear dalla landing
 $('#btnClearTop')?.addEventListener('click', clearAll);
-
-// Bottone landing per caricare l’Excel
 $('#btnLoadTop')?.addEventListener('click', ()=>{
   fileInput.value = '';
   fileInput.click();
 });
-
-// Click su pulsanti Anno 1 / Anno 2
 $$('.landing [data-anno]').forEach(btn => {
   btn.addEventListener('click', () => applyYearChoice(btn.dataset.anno));
 });
-
-// Click su bottoni corso (solo anno 2 abilita)
 $$('#courseButtons [data-course]').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     if (selectedYear === '2') {
@@ -473,7 +478,7 @@ $$('#courseButtons [data-course]').forEach(btn=>{
   });
 });
 
-// Init ---------------------------------------------------------------
+// Init ------------------------------------------------------------
 (function init(){
   const saved = localStorage.getItem('cal-anno');
   if(saved === '1' || saved === '2'){
