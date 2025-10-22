@@ -18,30 +18,39 @@
           <div class="sub"><span id="yearLabel">Scegli un anno per iniziare</span></div>
         </div>
       </div>
+
+      <!-- Input file reso globale: serve sia dalla landing che dalla pagina calendario -->
+      <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" style="display:none" />
+
       <button class="btn ghost" id="btnBack" type="button" style="margin-left:8px;">
         ⬅️ Torna alla scelta anno
       </button>
       <div class="badge" id="statusBadge">Nessun file</div>
     </header>
 
-    <!-- Landing: prima pagina con due grandi pulsanti -->
+    <!-- Landing: prima pagina con due grandi pulsanti + nuovo pulsante per importare Excel -->
     <section id="landing" class="landing">
       <div class="landing-card">
-        <h2>Seleziona l'Anno</h2>
+        <h2>Inizia caricando il file Excel e poi scegli l'Anno</h2>
+        <div class="landing-buttons">
+          <button class="btn big" id="btnLoadTop" type="button">📄 Carica Excel adesso</button>
+        </div>
+        <p class="hint">Dopo il caricamento, scegli l’Anno e poi il Corso: il foglio verrà pre-selezionato automaticamente.</p>
+
+        <h2 style="margin-top:20px;">Seleziona l'Anno</h2>
         <div class="landing-buttons">
           <button class="btn big primary" data-anno="1">Anno 1</button>
           <button class="btn big primary" data-anno="2">Anno 2</button>
         </div>
-        <p class="hint">Potrai cambiare anno in qualsiasi momento dal badge in alto.</p>
+        <p class="hint">Puoi anche cambiare file in qualsiasi momento.</p>
       </div>
     </section>
 
-    <!-- Nuova pagina: selezione corso -->
+    <!-- Selezione corso -->
     <section id="courseSection" class="landing hidden">
       <div class="landing-card">
         <h2>Seleziona il Corso</h2>
         <div class="landing-buttons" id="courseButtons">
-          <!-- I bottoni vengono abilitati/disabilitati in base all'anno -->
           <button class="btn big primary" data-course="front">Front</button>
           <button class="btn big primary" data-course="cyse">Cyse</button>
           <button class="btn big primary" data-course="dolc">Dolc</button>
@@ -52,11 +61,11 @@
       </div>
     </section>
 
-    <!-- App UI: nascosta finché non si sceglie corso (anno 2) -->
+    <!-- App UI (calendario) -->
     <section id="appSection" class="uibox hidden">
       <div class="card">
         <div class="inner controls">
-          <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" style="display:none" />
+          <!-- rimane anche qui il bottone per scegliere un file, usa lo stesso #fileInput globale -->
           <button class="btn" id="btnSample" type="button">Scegli file dal disco</button>
           <button class="btn ghost" id="btnClear" type="button">Pulisci tabella</button>
         </div>

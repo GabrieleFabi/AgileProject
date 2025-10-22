@@ -3,7 +3,7 @@ const $ = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => [...root.querySelectorAll(sel)];
 const statusBadge = $('#statusBadge');
 const dropZone = $('#dropZone');
-const fileInput = $('#fileInput');
+const fileInput = $('#fileInput');           // ora è globale (in header)
 const sheetSelect = $('#sheetSelect');
 const searchInput = $('#searchInput');
 const dateColumnSelect = $('#dateColumnSelect');
@@ -42,7 +42,7 @@ const DROP_HEADER_RE = /^(colonna|giorno|fust2)$/i;
 function isEmptyCell(v){
   if (v === null || v === undefined) return true;
   if (v instanceof Date) return false;
-  if (typeof v === 'number') return false; // i numeri sono considerati non vuoti
+  if (typeof v === 'number') return false;
   const s = String(v).trim();
   return s === '' || s === '-' || s === '—';
 }
@@ -50,7 +50,6 @@ function isEmptyCell(v){
 function shouldDropHeader(h, rows){
   if (!h) return true;
   if (DROP_HEADER_RE.test(String(h).trim())) return true;
-  // elimina colonne completamente vuote
   return rows.every(r => isEmptyCell(r[h]));
 }
 
@@ -113,14 +112,12 @@ function renderOptions(selectEl, options){
 
 // Rendering tabella -------------------------------------------------------
 function renderTable(headers, rows){
-  // Filtra colonne da rimuovere (vuote o da blacklist)
   headers = headers.filter(h => !shouldDropHeader(h, rows));
 
-  // --- Mostra solo righe dalla data corrente in poi ---
+  // Mostra solo righe dalla data corrente in poi
   const dateHeader = headers.find(h => /^(data|date)$/i.test(String(h).trim()));
   if (dateHeader) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = new Date(); today.setHours(0,0,0,0);
     rows = rows.filter(r => {
       const v = r[dateHeader];
       const d = v instanceof Date ? v : new Date(v);
@@ -128,12 +125,12 @@ function renderTable(headers, rows){
       return d >= today;
     });
   }
+
   currentHeaders = headers; currentData = rows;
-  // Filtra ricerca
+
   const q = searchInput.value.trim().toLowerCase();
   const filtered = !q ? rows : rows.filter(row => Object.values(row).some(v => toText(v).includes(q)));
 
-  // Ordina
   if(sortState.key){
     filtered.sort((a,b)=> cmp(a[sortState.key], b[sortState.key]) * sortState.dir);
   }
@@ -169,7 +166,7 @@ function renderTable(headers, rows){
   });
   tBody.appendChild(frag);
 
-  // Separatore visivo tra date diverse
+  // Separatore tra date diverse
   const _dateHeaderForSep = autoDetectDateHeader(headers);
   if(_dateHeaderForSep){
     const createdRows2 = [...tBody.querySelectorAll('tr')];
@@ -188,7 +185,7 @@ function renderTable(headers, rows){
     });
   }
 
-  // Evidenzia tutti i record della giornata se copertura < 8 ore
+  // Evidenzia record di giornate con copertura < 8h
   const _dateH = autoDetectDateHeader(headers);
   const _startH = autoDetectStartHeader(headers);
   const _endH = autoDetectEndHeader(headers);
@@ -238,7 +235,6 @@ function toText(v){
   return String(v).toLowerCase();
 }
 function cmp(a,b){
-  // Date > number > string
   if(a instanceof Date && b instanceof Date) return a - b;
   if(a instanceof Date) return -1;
   if(b instanceof Date) return 1;
@@ -251,15 +247,11 @@ function escapeHtml(s){ return s.replace(/[&<>"']/g, m=> ({'&':'&amp;','<':'&lt;
 
 // Valore "carino" per celle (formattazione data/ora)
 function prettyValue(v, header){
-  const dcol = dateColumnSelect.value;
-  const tcol = timeColumnSelect.value;
   if(v instanceof Date){
-    // Se la colonna è oraria, mostra solo HH:MM
     if(isLikelyTimeHeader(header)) return fmtTimeFromDate(v);
     return fmtDateIT(v);
   }
   if(typeof v === 'number'){
-    // Excel ore come frazione del giorno (0.375 = 09:00)
     if(v >= 0 && v < 1) return fmtTimeFromFraction(v);
   }
   return String(v);
@@ -269,7 +261,7 @@ const TIME_HEADER_RE = /^(ora|orario|dalle|alle|inizio|fine|start|end)$/i;
 function isLikelyTimeHeader(h){ return !!h && TIME_HEADER_RE.test(String(h).trim()); }
 
 function fmtTimeFromFraction(fr){
-  const total = Math.round(fr * 24 * 60); // minuti totali
+  const total = Math.round(fr * 24 * 60);
   const hh = Math.floor(total / 60);
   const mm = total % 60;
   return String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
@@ -277,13 +269,11 @@ function fmtTimeFromFraction(fr){
 function fmtTimeFromDate(d){
   return String(d.getUTCHours()).padStart(2,'0') + ':' + String(d.getUTCMinutes()).padStart(2,'0');
 }
-// --- Integrazione: evidenzia giornate incomplete 09:00–13:00 e 14:00–18:00 ---
 const DATE_HEADER_RE = /^(data|date)$/i;
 const START_HEADER_RE = /^(dalle|ora ?inizio|inizio|start)$/i;
 const END_HEADER_RE   = /^(alle|ora ?fine|fine|end)$/i;
 
 function autoDetectDateHeader(headers){
-  // priorità: select esplicita, altrimenti per nome
   const chosen = (dateColumnSelect && dateColumnSelect.value && dateColumnSelect.value !== '— nessuna —')
       ? dateColumnSelect.value : null;
   if (chosen && headers.includes(chosen)) return chosen;
@@ -296,14 +286,10 @@ function autoDetectEndHeader(headers){
   return headers.find(h => END_HEADER_RE.test(String(h))) || null;
 }
 
-// Converte qualsiasi valore orario in minuti da mezzanotte
 function toMinutes(v){
-  // Date -> usa UTC per evitare timezone locali
   if (v instanceof Date) return v.getUTCHours()*60 + v.getUTCMinutes();
   if (typeof v === 'number'){
-    // frazione di giorno
     if (v >= 0 && v <= 1) return Math.round(v*24*60);
-    // numero tipo 900, 1330 -> prova parsing
     if (v > 59 && v < 2400){
       const hh = Math.floor(v/100), mm = Math.round(v%100);
       return hh*60+mm;
@@ -316,7 +302,6 @@ function toMinutes(v){
   return null;
 }
 
-// Merge di intervalli [start,end] in minuti
 function mergeIntervals(intervals){
   const arr = intervals.filter(iv => iv && iv.start!=null && iv.end!=null && iv.end>iv.start)
                        .sort((a,b)=> a.start-b.start);
@@ -331,14 +316,6 @@ function mergeIntervals(intervals){
   return merged;
 }
 
-// Verifica copertura due blocchi: [09:00-13:00] e [14:00-18:00]
-function isDayFull(intervals){
-  const merged = mergeIntervals(intervals);
-  const needs = [{start:9*60, end:13*60}, {start:14*60, end:18*60}];
-  return needs.every(req => merged.some(iv => iv.start<=req.start && iv.end>=req.end));
-}
-
-// Calcola i minuti coperti all'interno delle finestre richieste (09-13 e 14-18)
 function coveredMinutesWithinNeeds(intervals){
   const merged = mergeIntervals(intervals);
   const needs = [{start:9*60, end:13*60}, {start:14*60, end:18*60}];
@@ -359,13 +336,14 @@ function fmtDateIT(d){
   }catch(e){ return d.toISOString().slice(0,10) }
 }
 
-// Import / Export ---------------------------------------------------------
+// Import ---------------------------------------------------------
 async function handleFile(file){
   if(!file) return;
   if(file.size > 10*1024*1024){ setStatus('File troppo grande (>10MB)','err'); return; }
   setStatus(`Caricamento: ${file.name}…`);
   const data = await file.arrayBuffer();
   workbook = XLSX.read(data, {type:'array'});
+
   // Popola select fogli
   sheetSelect.innerHTML = '';
   workbook.SheetNames.forEach((name, i)=>{
@@ -380,7 +358,7 @@ async function handleFile(file){
   if (pendingSheetName && workbook.SheetNames.includes(pendingSheetName)) {
     defaultSheet = pendingSheetName;
   } else {
-    // fallback precedente: un foglio che contiene "fust", altrimenti il primo
+    // fallback: un foglio che contiene "fust", altrimenti il primo
     defaultSheet = workbook.SheetNames.find(n => n.toLowerCase().includes('fust'))
                    || workbook.SheetNames[0];
   }
@@ -403,12 +381,11 @@ function applyYearChoice(year){
   selectedYear = String(year);
   localStorage.setItem('cal-anno', selectedYear);
   yearLabel.textContent = `Anno ${selectedYear}`;
-  // mostra pagina corsi, nasconde resto
+
   landing.classList.add('hidden');
   appSection.classList.add('hidden');
   courseSection.classList.remove('hidden');
 
-  // Abilita/Disabilita bottoni corso
   const isYear2 = selectedYear === '2';
   $('#courseHint').textContent = isYear2
     ? 'Scegli un corso per aprire il calendario (foglio pre-selezionato).'
@@ -419,15 +396,14 @@ function applyYearChoice(year){
 }
 
 function goToCalendarWithCourse(courseKey){
-  if(selectedYear !== '2') return; // sicurezza
+  if(selectedYear !== '2') return;
   const wanted = COURSE_TO_SHEET[courseKey];
   pendingSheetName = wanted || null;
 
-  // Vai al calendario
   courseSection.classList.add('hidden');
   appSection.classList.remove('hidden');
 
-  // Se ho già un workbook e il foglio esiste, selezionalo subito
+  // Se il file è già stato caricato dalla landing, seleziona subito il foglio
   if(workbook && pendingSheetName && workbook.SheetNames.includes(pendingSheetName)){
     sheetSelect.value = pendingSheetName;
     loadSheet(pendingSheetName);
@@ -437,7 +413,6 @@ function goToCalendarWithCourse(courseKey){
 // Eventi UI ---------------------------------------------------------------
 fileInput?.addEventListener('change', e=> handleFile(e.target.files[0]));
 $('#btnBack')?.addEventListener('click', () => {
-  // Torna alla landing (scelta anno)
   localStorage.removeItem('cal-anno');
   landing.classList.remove('hidden');
   appSection.classList.add('hidden');
@@ -451,31 +426,34 @@ dateColumnSelect?.addEventListener('change', ()=> renderTable(currentHeaders, cu
 timeColumnSelect?.addEventListener('change', ()=> renderTable(currentHeaders, currentData));
 
 $('#btnClear')?.addEventListener('click', ()=>{
-  // Svuota tabella
   tHead.innerHTML = '';
   tBody.innerHTML = '';
   rowsCount.textContent = '—';
 
-  // Resetta stato
   currentData = [];
   currentHeaders = [];
   sortState = { key: null, dir: 1 };
   workbook = null;
 
-  // Svuota UI
   sheetSelect.innerHTML = '';
   dateColumnSelect.innerHTML = '';
   timeColumnSelect.innerHTML = '';
   searchInput.value = '';
 
-  // Fondamentale: svuota il file input
   fileInput.value = '';
 
   setStatus('Nessun file');
 });
 
+// Bottone landing (nuovo) per caricare l’Excel
+$('#btnLoadTop')?.addEventListener('click', ()=>{
+  fileInput.value = '';
+  fileInput.click();
+});
+
+// Bottone già esistente nella pagina calendario: resta invariato
 $('#btnSample')?.addEventListener('click', ()=>{
-  fileInput.value = ''; // permette di riselezionare anche lo stesso file
+  fileInput.value = '';
   fileInput.click();
 });
 
@@ -493,13 +471,12 @@ $$('#courseButtons [data-course]').forEach(btn=>{
   });
 });
 
-// All'avvio: se ho già una scelta salvata, apro la pagina di selezione corso
+// Init ---------------------------------------------------------------
 (function init(){
   const saved = localStorage.getItem('cal-anno');
   if(saved === '1' || saved === '2'){
     applyYearChoice(saved);
   } else {
-    // landing visibile, testo header
     yearLabel.textContent = 'Scegli un anno per iniziare';
   }
   setStatus('Carica un file Excel');
