@@ -36,7 +36,23 @@
       </div>
     </section>
 
-    <!-- App UI: nascosta finché non si sceglie l'anno -->
+    <!-- Nuova pagina: selezione corso -->
+    <section id="courseSection" class="landing hidden">
+      <div class="landing-card">
+        <h2>Seleziona il Corso</h2>
+        <div class="landing-buttons" id="courseButtons">
+          <!-- I bottoni vengono abilitati/disabilitati in base all'anno -->
+          <button class="btn big primary" data-course="front">Front</button>
+          <button class="btn big primary" data-course="cyse">Cyse</button>
+          <button class="btn big primary" data-course="dolc">Dolc</button>
+          <button class="btn big primary" data-course="fust">Fust</button>
+          <button class="btn big primary" data-course="ago">Ago</button>
+        </div>
+        <p class="hint" id="courseHint">Scegli un anno per continuare.</p>
+      </div>
+    </section>
+
+    <!-- App UI: nascosta finché non si sceglie corso (anno 2) -->
     <section id="appSection" class="uibox hidden">
       <div class="card">
         <div class="inner controls">

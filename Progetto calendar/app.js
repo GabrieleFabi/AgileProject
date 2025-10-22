@@ -16,12 +16,25 @@ const sortHint = $('#sortHint');
 const landing = $('#landing');
 const appSection = $('#appSection');
 const yearLabel = $('#yearLabel');
+const courseSection = $('#courseSection');
+const courseButtonsWrap = $('#courseButtons');
+const courseHint = $('#courseHint');
 
 let workbook = null;
 let currentData = [];   // array di oggetti {col:val}
 let currentHeaders = [];// array di stringhe
 let sortState = {key:null, dir:1};
 let selectedYear = null; // "1" | "2"
+let pendingSheetName = null; // quando scelgo un corso prima di caricare il file
+
+// Mappa corsi -> fogli anno 2
+const COURSE_TO_SHEET = {
+  front: 'Frot2',
+  cyse:  'Cyse2',
+  dolc:  'Dolc2',
+  fust:  'Fust2',
+  ago:   'Ago2'
+};
 
 // --- Filtri colonne da nascondere ---
 const DROP_HEADER_RE = /^(colonna|giorno|fust2)$/i;
@@ -29,12 +42,10 @@ const DROP_HEADER_RE = /^(colonna|giorno|fust2)$/i;
 function isEmptyCell(v){
   if (v === null || v === undefined) return true;
   if (v instanceof Date) return false;
-  if (typeof v === 'number') return FalseIfZero(v=false); // number counts as not empty
+  if (typeof v === 'number') return false; // i numeri sono considerati non vuoti
   const s = String(v).trim();
   return s === '' || s === '-' || s === '—';
 }
-// small helper to keep linter quiet, numbers are considered not empty
-function FalseIfZero(v){ return false; }
 
 function shouldDropHeader(h, rows){
   if (!h) return true;
@@ -324,7 +335,6 @@ function mergeIntervals(intervals){
 function isDayFull(intervals){
   const merged = mergeIntervals(intervals);
   const needs = [{start:9*60, end:13*60}, {start:14*60, end:18*60}];
-  // per ogni blocco richiesto, deve esistere un intervallo merged che lo copre interamente
   return needs.every(req => merged.some(iv => iv.start<=req.start && iv.end>=req.end));
 }
 
@@ -365,9 +375,15 @@ async function handleFile(file){
     sheetSelect.appendChild(opt);
   });
 
-  // Se esiste un foglio chiamato "Fust" (case-insensitive), caricalo per primo
-  const defaultSheet = workbook.SheetNames.find(n => n.toLowerCase().includes('fust'))
+  // Se ho una richiesta specifica da "selezione corso" e il foglio esiste, usa quella.
+  let defaultSheet = null;
+  if (pendingSheetName && workbook.SheetNames.includes(pendingSheetName)) {
+    defaultSheet = pendingSheetName;
+  } else {
+    // fallback precedente: un foglio che contiene "fust", altrimenti il primo
+    defaultSheet = workbook.SheetNames.find(n => n.toLowerCase().includes('fust'))
                    || workbook.SheetNames[0];
+  }
   sheetSelect.value = defaultSheet;
   loadSheet(defaultSheet);
 
@@ -382,23 +398,52 @@ function loadSheet(name){
   renderTable(headers, rows);
 }
 
-// --- Landing logic -------------------------------------------------------
+// --- Navigazione: Anno -> Corso -> Calendario ---------------------------
 function applyYearChoice(year){
   selectedYear = String(year);
   localStorage.setItem('cal-anno', selectedYear);
   yearLabel.textContent = `Anno ${selectedYear}`;
+  // mostra pagina corsi, nasconde resto
   landing.classList.add('hidden');
+  appSection.classList.add('hidden');
+  courseSection.classList.remove('hidden');
+
+  // Abilita/Disabilita bottoni corso
+  const isYear2 = selectedYear === '2';
+  $('#courseHint').textContent = isYear2
+    ? 'Scegli un corso per aprire il calendario (foglio pre-selezionato).'
+    : 'Per l’Anno 1 non è disponibile il calendario: i bottoni non sono attivi.';
+  $$('#courseButtons [data-course]').forEach(btn=>{
+    btn.disabled = !isYear2; // anno 1: disabilitati
+  });
+}
+
+function goToCalendarWithCourse(courseKey){
+  if(selectedYear !== '2') return; // sicurezza
+  const wanted = COURSE_TO_SHEET[courseKey];
+  pendingSheetName = wanted || null;
+
+  // Vai al calendario
+  courseSection.classList.add('hidden');
   appSection.classList.remove('hidden');
+
+  // Se ho già un workbook e il foglio esiste, selezionalo subito
+  if(workbook && pendingSheetName && workbook.SheetNames.includes(pendingSheetName)){
+    sheetSelect.value = pendingSheetName;
+    loadSheet(pendingSheetName);
+  }
 }
 
 // Eventi UI ---------------------------------------------------------------
 fileInput?.addEventListener('change', e=> handleFile(e.target.files[0]));
 $('#btnBack')?.addEventListener('click', () => {
-  // Torna alla landing
+  // Torna alla landing (scelta anno)
   localStorage.removeItem('cal-anno');
   landing.classList.remove('hidden');
   appSection.classList.add('hidden');
+  courseSection.classList.add('hidden');
   yearLabel.textContent = 'Scegli un anno per iniziare';
+  pendingSheetName = null;
 });
 sheetSelect?.addEventListener('change', e=> loadSheet(e.target.value));
 searchInput?.addEventListener('input', ()=> renderTable(currentHeaders, currentData));
@@ -439,7 +484,16 @@ $$('.landing [data-anno]').forEach(btn => {
   btn.addEventListener('click', () => applyYearChoice(btn.dataset.anno));
 });
 
-// All'avvio: se ho già una scelta salvata, riapri direttamente l'app
+// Click su bottoni corso (solo anno 2 abilita)
+$$('#courseButtons [data-course]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    if (selectedYear === '2') {
+      goToCalendarWithCourse(btn.dataset.course);
+    }
+  });
+});
+
+// All'avvio: se ho già una scelta salvata, apro la pagina di selezione corso
 (function init(){
   const saved = localStorage.getItem('cal-anno');
   if(saved === '1' || saved === '2'){
@@ -450,4 +504,3 @@ $$('.landing [data-anno]').forEach(btn => {
   }
   setStatus('Carica un file Excel');
 })();
-
