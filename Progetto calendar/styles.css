@@ -93,3 +93,8 @@ tbody tr.date-sep td{
   border-top: 2px solid rgba(110,168,254,.35);
   padding-top: 18px;
 }
+
+
+.hidden-ui {
+  display: none !important;
+}

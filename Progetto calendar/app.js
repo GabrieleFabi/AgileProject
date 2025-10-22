@@ -382,15 +382,6 @@ function loadSheet(name){
   renderTable(headers, rows);
 }
 
-function exportCSV(){
-  if(!currentData.length){ return }
-  const rows = [currentHeaders, ...currentData.map(r=> currentHeaders.map(h=> r[h] instanceof Date ? fmtDateIT(r[h]) : r[h]))];
-  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob = new Blob(["\ufeff"+csv], {type:'text/csv;charset=utf-8;'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = 'calendario.csv'; a.click();
-  setTimeout(()=> URL.revokeObjectURL(url), 1500);
-}
 
 // Eventi UI ---------------------------------------------------------------
 fileInput.addEventListener('change', e=> handleFile(e.target.files[0]));
@@ -425,7 +416,6 @@ $('#btnClear').addEventListener('click', ()=>{
 });
 
 
-$('#btnExportCsv').addEventListener('click', exportCSV);
 
 $('#btnSample').addEventListener('click', ()=>{
   fileInput.value = ''; // permette di riselezionare anche lo stesso file
