@@ -64,11 +64,14 @@
     <!-- Calendario -->
     <section id="appSection" class="uibox hidden">
 
-      <!-- Box ricerca sopra il calendario -->
+      <!-- Barra di ricerca + bottone toggle nella stessa riga -->
       <div class="card narrow-card">
-        <div class="inner stack">
-          <label for="searchInput">Cerca</label>
-          <input id="searchInput" type="search" placeholder="Cerca in tabella (testo, date, orari)…" />
+        <div class="inner row-controls">
+          <div class="stack" style="flex:1 1 auto">
+            <label for="searchInput">Cerca</label>
+            <input id="searchInput" type="search" placeholder="Cerca in tabella (testo, date, orari)…" />
+          </div>
+          <button class="btn" id="btnToggleAll" type="button" title="Mostra tutto il calendario">📅 Mostra tutto</button>
         </div>
       </div>
 

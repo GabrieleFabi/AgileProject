@@ -19,13 +19,16 @@ const yearLabel = $('#yearLabel');
 const courseSection = $('#courseSection');
 
 let workbook = null;
-let currentData = [];
 let currentHeaders = [];
+let currentData = [];           // ultimo dataset renderizzato (post filtro data/ricerca)
+let allRows = [];               // NEW: tutte le righe del foglio (sorgente per ogni render)
+let showAll = false;            // NEW: stato toggle "Mostra tutto"
+
 let sortState = {key:null, dir:1};
 let selectedYear = null;
 let pendingSheetName = null;
 
-// NEW: copertura giornaliera precomputata
+// copertura giornaliera precomputata
 let dayCoverage = new Map();         // key (YYYY-MM-DD) -> minuti
 let coverageDateHeader = null;       // nome colonna data usato per calcolo
 
@@ -39,18 +42,8 @@ const COURSE_TO_SHEET = {
 
 const DROP_HEADER_RE = /^(colonna|giorno|fust2)$/i;
 
-function isEmptyCell(v){
-  if (v === null || v === undefined) return true;
-  if (v instanceof Date) return false;
-  if (typeof v === 'number') return false;
-  const s = String(v).trim();
-  return s === '' || s === '-' || s === '—';
-}
-function shouldDropHeader(h, rows){
-  if (!h) return true;
-  if (DROP_HEADER_RE.test(String(h).trim())) return true;
-  return rows.every(r => isEmptyCell(r[h]));
-}
+function isEmptyCell(v){ if (v === null || v === undefined) return true; if (v instanceof Date) return false; if (typeof v === 'number') return false; const s = String(v).trim(); return s === '' || s === '-' || s === '—'; }
+function shouldDropHeader(h, rows){ if (!h) return true; if (DROP_HEADER_RE.test(String(h).trim())) return true; return rows.every(r => isEmptyCell(r[h])); }
 function setStatus(text, tone="info"){
   statusBadge.textContent = text;
   const color = tone === 'ok' ? 'var(--accent)' : tone === 'err' ? 'var(--danger)' : 'var(--brand)';
@@ -73,12 +66,9 @@ function excelToJson(ws){
   const aoa = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:""});
   if(!aoa.length){ return {headers:[], rows:[]} }
   let headers = aoa[0].map(h => sanitizeHeader(String(h || 'Colonna')));
-  if(headers.every(h => h === 'Colonna')){
-    headers = aoa[0].map((_,i)=> colName(i));
-  }
+  if(headers.every(h => h === 'Colonna')){ headers = aoa[0].map((_,i)=> colName(i)); }
   const rows = aoa.slice(1).map(r => {
-    const obj = {};
-    headers.forEach((h,i)=>{ obj[h] = formatCell(r[i]); });
+    const obj = {}; headers.forEach((h,i)=>{ obj[h] = formatCell(r[i]); });
     return obj;
   });
   return {headers, rows};
@@ -87,16 +77,12 @@ function sanitizeHeader(h){ return h.trim().replace(/\s+/g,' ').replace(/[\n\r]+
 function colName(i){ let s=""; i++; while(i>0){ let m=(i-1)%26; s=String.fromCharCode(65+m)+s; i=Math.floor((i-1)/26) } return s; }
 function isExcelDate(v){ return typeof v === 'number' && v > 59 && v < 60000 }
 function formatExcelDate(v){
-  try{
-    const d = XLSX.SSF.parse_date_code(v);
-    if(!d) return v;
+  try{ const d = XLSX.SSF.parse_date_code(v); if(!d) return v;
     return new Date(Date.UTC(d.y, (d.m||1)-1, d.d||1, d.H||0, d.M||0, Math.floor(d.S||0)));
   }catch(e){ return v }
 }
 function formatCell(v){ if(isExcelDate(v)) return formatExcelDate(v); return v; }
-function renderOptions(selectEl, options){
-  selectEl.innerHTML = options.map(o => `<option value="${String(o)}">${String(o)}</option>`).join('');
-}
+function renderOptions(selectEl, options){ selectEl.innerHTML = options.map(o => `<option value="${String(o)}">${String(o)}</option>`).join(''); }
 
 // --- Helpers date/time ---------------------------------------------------
 const DATE_HEADER_RE = /^(data|date)$/i;
@@ -110,115 +96,59 @@ function autoDetectDateHeader(headers){
   if (chosen && headers.includes(chosen)) return chosen;
   return headers.find(h => DATE_HEADER_RE.test(String(h))) || null;
 }
-function autoDetectStartHeader(headers){
-  return headers.find(h => START_HEADER_RE.test(String(h))) || null;
-}
-function autoDetectEndHeader(headers){
-  return headers.find(h => END_HEADER_RE.test(String(h))) || null;
-}
+function autoDetectStartHeader(headers){ return headers.find(h => START_HEADER_RE.test(String(h))) || null; }
+function autoDetectEndHeader(headers){ return headers.find(h => END_HEADER_RE.test(String(h))) || null; }
 function toMinutes(v){
   if (v instanceof Date) return v.getUTCHours()*60 + v.getUTCMinutes();
   if (typeof v === 'number'){
     if (v >= 0 && v <= 1) return Math.round(v*24*60);
-    if (v > 59 && v < 2400){
-      const hh = Math.floor(v/100), mm = Math.round(v%100);
-      return hh*60+mm;
-    }
+    if (v > 59 && v < 2400){ const hh = Math.floor(v/100), mm = Math.round(v%100); return hh*60+mm; }
   }
-  if (typeof v === 'string'){
-    const m = v.trim().match(/^(\d{1,2})[:.](\d{2})/);
-    if (m){ return parseInt(m[1])*60 + parseInt(m[2]); }
-  }
+  if (typeof v === 'string'){ const m = v.trim().match(/^(\d{1,2})[:.](\d{2})/); if (m){ return parseInt(m[1])*60 + parseInt(m[2]); } }
   return null;
 }
 function mergeIntervals(intervals){
-  const arr = intervals.filter(iv => iv && iv.start!=null && iv.end!=null && iv.end>iv.start)
-                       .sort((a,b)=> a.start-b.start);
-  const merged = [];
-  for(const iv of arr){
-    if(!merged.length || iv.start > merged[merged.length-1].end){
-      merged.push({start:iv.start, end:iv.end});
-    } else {
-      merged[merged.length-1].end = Math.max(merged[merged.length-1].end, iv.end);
-    }
-  }
+  const arr = intervals.filter(iv => iv && iv.start!=null && iv.end!=null && iv.end>iv.start).sort((a,b)=> a.start-b.start);
+  const merged = []; for(const iv of arr){ if(!merged.length || iv.start > merged[merged.length-1].end){ merged.push({start:iv.start, end:iv.end}); } else { merged[merged.length-1].end = Math.max(merged[merged.length-1].end, iv.end); } }
   return merged;
 }
 function coveredMinutesWithinNeeds(intervals){
-  const merged = mergeIntervals(intervals);
-  const needs = [{start:9*60, end:13*60}, {start:14*60, end:18*60}];
-  let total = 0;
-  for(const need of needs){
-    for(const iv of merged){
-      const start = Math.max(need.start, iv.start);
-      const end = Math.min(need.end, iv.end);
-      if(end > start) total += (end - start);
-    }
-  }
+  const merged = mergeIntervals(intervals), needs = [{start:9*60, end:13*60}, {start:14*60, end:18*60}];
+  let total = 0; for(const need of needs){ for(const iv of merged){ const start = Math.max(need.start, iv.start); const end = Math.min(need.end, iv.end); if(end > start) total += (end - start); } }
   return total;
 }
 function fmtDateIT(d){ try{ return new Intl.DateTimeFormat('it-IT', {weekday:'short', day:'2-digit', month:'2-digit', year:'numeric'}).format(d); }catch(e){ return d.toISOString().slice(0,10) } }
 function isLikelyTimeHeader(h){ return !!h && TIME_HEADER_RE.test(String(h).trim()); }
 function fmtTimeFromFraction(fr){ const total = Math.round(fr * 24 * 60); const hh = Math.floor(total / 60); const mm = total % 60; return String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0'); }
 function fmtTimeFromDate(d){ return String(d.getUTCHours()).padStart(2,'0') + ':' + String(d.getUTCMinutes()).padStart(2,'0'); }
-function prettyValue(v, header){
-  if(v instanceof Date){ if(isLikelyTimeHeader(header)) return fmtTimeFromDate(v); return fmtDateIT(v); }
-  if(typeof v === 'number'){ if(v >= 0 && v < 1) return fmtTimeFromFraction(v); }
-  return String(v);
-}
+function prettyValue(v, header){ if(v instanceof Date){ if(isLikelyTimeHeader(header)) return fmtTimeFromDate(v); return fmtDateIT(v); } if(typeof v === 'number'){ if(v >= 0 && v < 1) return fmtTimeFromFraction(v); } return String(v); }
 function toText(v){ if(v instanceof Date){ return v.toISOString().slice(0,10); } return String(v).toLowerCase(); }
-function cmp(a,b){
-  if(a instanceof Date && b instanceof Date) return a - b;
-  if(a instanceof Date) return -1;
-  if(b instanceof Date) return 1;
-  const na = Number(a), nb = Number(b);
-  const aNum = !Number.isNaN(na); const bNum = !Number.isNaN(nb);
-  if(aNum && bNum) return na - nb;
-  return String(a).localeCompare(String(b), 'it', {numeric:true, sensitivity:'base'});
-}
+function cmp(a,b){ if(a instanceof Date && b instanceof Date) return a - b; if(a instanceof Date) return -1; if(b instanceof Date) return 1; const na = Number(a), nb = Number(b); const aNum = !Number.isNaN(na), bNum = !Number.isNaN(nb); if(aNum && bNum) return na - nb; return String(a).localeCompare(String(b), 'it', {numeric:true, sensitivity:'base'}); }
 function escapeHtml(s){ return s.replace(/[&<>"']/g, m=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]) ) }
-function dateKeyFromVal(v){
-  const d = (v instanceof Date) ? v : (typeof v === 'string' ? new Date(v) : null);
-  if(d && !isNaN(d)) return d.toISOString().slice(0,10);
-  return String(v);
-}
+function dateKeyFromVal(v){ const d = (v instanceof Date) ? v : (typeof v === 'string' ? new Date(v) : null); if(d && !isNaN(d)) return d.toISOString().slice(0,10); return String(v); }
 
-// --- PRECOMPUTO: copertura giornaliera sull’intero dataset --------------
+// --- PRECOMPUTO copertura -----------------------------------------------
 function computeDayCoverage(headers, rows){
-  dayCoverage = new Map();
-  coverageDateHeader = null;
-
-  const dateH = autoDetectDateHeader(headers);
-  const startH = autoDetectStartHeader(headers);
-  const endH   = autoDetectEndHeader(headers);
-  if(!(dateH && startH && endH)) return; // non posso calcolare
-
-  coverageDateHeader = dateH;
-
-  const map = new Map(); // key -> {intervals:[]}
+  dayCoverage = new Map(); coverageDateHeader = null;
+  const dateH = autoDetectDateHeader(headers), startH = autoDetectStartHeader(headers), endH = autoDetectEndHeader(headers);
+  if(!(dateH && startH && endH)) return; coverageDateHeader = dateH;
+  const map = new Map();
   rows.forEach(r=>{
-    const dVal = r[dateH];
-    const key = dateKeyFromVal(dVal);
-    const sMin = toMinutes(r[startH]);
-    const eMin = toMinutes(r[endH]);
-    if(sMin!=null && eMin!=null && eMin>sMin){
-      if(!map.has(key)) map.set(key, {intervals:[]});
-      map.get(key).intervals.push({start:sMin, end:eMin});
-    }
+    const key = dateKeyFromVal(r[dateH]); const sMin = toMinutes(r[startH]); const eMin = toMinutes(r[endH]);
+    if(sMin!=null && eMin!=null && eMin>sMin){ if(!map.has(key)) map.set(key, {intervals:[]}); map.get(key).intervals.push({start:sMin, end:eMin}); }
   });
-
-  for(const [k, obj] of map.entries()){
-    const minutes = coveredMinutesWithinNeeds(obj.intervals);
-    dayCoverage.set(k, minutes);
-  }
+  for(const [k,obj] of map.entries()){ dayCoverage.set(k, coveredMinutesWithinNeeds(obj.intervals)); }
 }
 
 // Rendering tabella -------------------------------------------------------
-function renderTable(headers, rows){
+function renderTable(headers, rowsBase){
+  // punto di partenza: sempre l’intero dataset o quello passato (non filtrato per data)
+  let rows = rowsBase.slice();
   headers = headers.filter(h => !shouldDropHeader(h, rows));
 
+  // filtro per data SOLO se showAll === false
   const dateHeader = headers.find(h => /^(data|date)$/i.test(String(h).trim()));
-  if (dateHeader) {
+  if (dateHeader && !showAll) {
     const today = new Date(); today.setHours(0,0,0,0);
     rows = rows.filter(r => {
       const v = r[dateHeader];
@@ -233,9 +163,7 @@ function renderTable(headers, rows){
   const q = searchInput.value.trim().toLowerCase();
   const filtered = !q ? rows : rows.filter(row => Object.values(row).some(v => toText(v).includes(q)));
 
-  if(sortState.key){
-    filtered.sort((a,b)=> cmp(a[sortState.key], b[sortState.key]) * sortState.dir);
-  }
+  if(sortState.key){ filtered.sort((a,b)=> cmp(a[sortState.key], b[sortState.key]) * sortState.dir); }
 
   // Header
   tHead.innerHTML = '';
@@ -244,10 +172,7 @@ function renderTable(headers, rows){
     const th = document.createElement('th');
     th.className = 'sortable';
     th.innerHTML = `<span>${escapeHtml(h)}</span><span class="chev">${sortIcon(h)}</span>`;
-    th.addEventListener('click', ()=>{
-      if(sortState.key === h){ sortState.dir *= -1 } else { sortState.key = h; sortState.dir = 1 }
-      renderTable(headers, rows);
-    });
+    th.addEventListener('click', ()=>{ if(sortState.key === h){ sortState.dir *= -1 } else { sortState.key = h; sortState.dir = 1 } renderTable(headers, rowsBase); });
     trh.appendChild(th);
   });
   tHead.appendChild(trh);
@@ -260,42 +185,35 @@ function renderTable(headers, rows){
     const tr = document.createElement('tr');
     headers.forEach(h=>{
       const td = document.createElement('td');
-      const v = row[h];
-      td.textContent = prettyValue(v, h);
+      td.textContent = prettyValue(row[h], h);
       tr.appendChild(td);
     });
     frag.appendChild(tr);
   });
   tBody.appendChild(frag);
 
-  // Separatore tra date diverse (sul filtrato)
+  // Separatore tra date diverse
   const _dateHeaderForSep = autoDetectDateHeader(headers);
   if(_dateHeaderForSep){
     const createdRows2 = [...tBody.querySelectorAll('tr')];
     let prevKey = null;
     createdRows2.forEach((tr, idx)=>{
       const r = filtered[idx];
-      const dVal = r[_dateHeaderForSep];
-      const key = dateKeyFromVal(dVal);
-      if(idx>0 && key !== prevKey){
-        tr.classList.add('date-sep');
-      }else{
-        tr.classList.remove('date-sep');
-      }
+      const key = dateKeyFromVal(r[_dateHeaderForSep]);
+      if(idx>0 && key !== prevKey){ tr.classList.add('date-sep'); } else { tr.classList.remove('date-sep'); }
       prevKey = key;
     });
   }
 
-  // Evidenziazione basata su PRECOMPUTO, non sul filtrato
+  // Evidenziazione basata su PRECOMPUTO
   if (coverageDateHeader){
-    const dateIdxInRendered = headers.indexOf(coverageDateHeader); // dove sta la data nella tabella corrente
+    const dateIdxInRendered = headers.indexOf(coverageDateHeader);
     const createdRows = [...tBody.querySelectorAll('tr')];
     createdRows.forEach((tr, idx)=>{
       const r = filtered[idx];
       const key = dateKeyFromVal(r[coverageDateHeader]);
       const minutes = dayCoverage.get(key) || 0;
 
-      // reset
       tr.classList.remove('day-short');
       if (dateIdxInRendered >= 0) tr.children[dateIdxInRendered]?.classList.remove('date-red');
 
@@ -316,7 +234,7 @@ function renderTable(headers, rows){
 
 function sortIcon(h){ if(sortState.key !== h) return '↕'; return sortState.dir === 1 ? '↑' : '↓' }
 
-// Import, caricamento e navigazione --------------------------------------
+// Import e caricamento ----------------------------------------------------
 async function handleFile(file){
   if(!file) return;
   if(file.size > 10*1024*1024){ setStatus('File troppo grande (>10MB)','err'); return; }
@@ -327,8 +245,7 @@ async function handleFile(file){
   sheetSelect.innerHTML = '';
   workbook.SheetNames.forEach((name, i)=>{
     const opt = document.createElement('option');
-    opt.value = name;
-    opt.textContent = `${i+1}. ${name}`;
+    opt.value = name; opt.textContent = `${i+1}. ${name}`;
     sheetSelect.appendChild(opt);
   });
 
@@ -336,8 +253,7 @@ async function handleFile(file){
   if (pendingSheetName && workbook.SheetNames.includes(pendingSheetName)) {
     defaultSheet = pendingSheetName;
   } else {
-    defaultSheet = workbook.SheetNames.find(n => n.toLowerCase().includes('fust'))
-                   || workbook.SheetNames[0];
+    defaultSheet = workbook.SheetNames.find(n => n.toLowerCase().includes('fust')) || workbook.SheetNames[0];
   }
   sheetSelect.value = defaultSheet;
   loadSheet(defaultSheet);
@@ -350,13 +266,19 @@ function loadSheet(name){
   const ws = workbook.Sheets[name];
   const {headers, rows} = excelToJson(ws);
 
-  // NEW: calcolo una volta sull'intero dataset
+  // precomputo copertura
   computeDayCoverage(headers, rows);
 
-  renderTable(headers, rows);
+  // sorgente globale per render
+  allRows = rows.slice();
+  currentHeaders = headers.slice();
+  showAll = false;             // si parte da "da oggi"
+  updateToggleButton();
+
+  renderTable(currentHeaders, allRows);
 }
 
-// CLEAR -----------------------------------------------------------
+// CLEAR -------------------------------------------------------------------
 function clearAll(){
   tHead.innerHTML = '';
   tBody.innerHTML = '';
@@ -364,10 +286,13 @@ function clearAll(){
 
   currentData = [];
   currentHeaders = [];
+  allRows = [];
+  showAll = false;
+  updateToggleButton();
+
   sortState = { key: null, dir: 1 };
   workbook = null;
 
-  // reset precomputo
   dayCoverage = new Map();
   coverageDateHeader = null;
 
@@ -394,9 +319,7 @@ function applyYearChoice(year){
   $('#courseHint').textContent = isYear2
     ? 'Scegli un corso per aprire il calendario (foglio pre-selezionato).'
     : 'Per l’Anno 1 non è disponibile il calendario: i bottoni non sono attivi.';
-  $$('#courseButtons [data-course]').forEach(btn=>{
-    btn.disabled = !isYear2;
-  });
+  $$('#courseButtons [data-course]').forEach(btn=>{ btn.disabled = !isYear2; });
 }
 
 function goToCalendarWithCourse(courseKey){
@@ -413,6 +336,14 @@ function goToCalendarWithCourse(courseKey){
   }
 }
 
+// --- Toggle "Mostra tutto" ----------------------------------------------
+function updateToggleButton(){
+  const btn = $('#btnToggleAll');
+  if(!btn) return;
+  btn.textContent = showAll ? '📅 Mostra da oggi' : '📅 Mostra tutto';
+  btn.title = showAll ? 'Mostra solo da oggi' : 'Mostra tutto il calendario';
+}
+
 // Eventi UI ---------------------------------------------------------------
 fileInput?.addEventListener('change', e=> handleFile(e.target.files[0]));
 $('#btnBack')?.addEventListener('click', () => {
@@ -424,33 +355,26 @@ $('#btnBack')?.addEventListener('click', () => {
   pendingSheetName = null;
 });
 sheetSelect?.addEventListener('change', e=> loadSheet(e.target.value));
-searchInput?.addEventListener('input', ()=> renderTable(currentHeaders, currentData));
-dateColumnSelect?.addEventListener('change', ()=> renderTable(currentHeaders, currentData));
-timeColumnSelect?.addEventListener('change', ()=> renderTable(currentHeaders, currentData));
+
+searchInput?.addEventListener('input', ()=> renderTable(currentHeaders, allRows));
+dateColumnSelect?.addEventListener('change', ()=> renderTable(currentHeaders, allRows));
+timeColumnSelect?.addEventListener('change', ()=> renderTable(currentHeaders, allRows));
+
+$('#btnToggleAll')?.addEventListener('click', ()=>{
+  showAll = !showAll;
+  updateToggleButton();
+  renderTable(currentHeaders, allRows);
+});
 
 $('#btnClearTop')?.addEventListener('click', clearAll);
-$('#btnLoadTop')?.addEventListener('click', ()=>{
-  fileInput.value = '';
-  fileInput.click();
-});
-$$('.landing [data-anno]').forEach(btn => {
-  btn.addEventListener('click', () => applyYearChoice(btn.dataset.anno));
-});
-$$('#courseButtons [data-course]').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    if (selectedYear === '2') {
-      goToCalendarWithCourse(btn.dataset.course);
-    }
-  });
-});
+$('#btnLoadTop')?.addEventListener('click', ()=>{ fileInput.value = ''; fileInput.click(); });
+$$('.landing [data-anno]').forEach(btn => { btn.addEventListener('click', () => applyYearChoice(btn.dataset.anno)); });
+$$('#courseButtons [data-course]').forEach(btn=>{ btn.addEventListener('click', ()=>{ if (selectedYear === '2') { goToCalendarWithCourse(btn.dataset.course); } }); });
 
-// Init ------------------------------------------------------------
+// Init --------------------------------------------------------------------
 (function init(){
   const saved = localStorage.getItem('cal-anno');
-  if(saved === '1' || saved === '2'){
-    applyYearChoice(saved);
-  } else {
-    yearLabel.textContent = 'Scegli un anno per iniziare';
-  }
+  if(saved === '1' || saved === '2'){ applyYearChoice(saved); } else { yearLabel.textContent = 'Scegli un anno per iniziare'; }
   setStatus('Carica un file Excel');
+  updateToggleButton();
 })();
