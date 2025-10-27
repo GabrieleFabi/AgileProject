@@ -18,7 +18,6 @@
         </div>
       </div>
 
-      <!-- Input file globale -->
       <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" style="display:none" />
 
       <button class="btn ghost" id="btnBack" type="button" style="margin-left:8px;">
@@ -64,14 +63,32 @@
     <!-- Calendario -->
     <section id="appSection" class="uibox hidden">
 
-      <!-- Barra di ricerca + bottone toggle nella stessa riga -->
-      <div class="card narrow-card">
-        <div class="inner row-controls">
-          <div class="stack" style="flex:1 1 auto">
-            <label for="searchInput">Cerca</label>
-            <input id="searchInput" type="search" placeholder="Cerca in tabella (testo, date, orari)…" />
+      <!-- NUOVO: riga split 50/50 -->
+      <div class="controls-split">
+        <!-- Sinistra: ricerca + bottone -->
+        <div class="card">
+          <div class="inner row-controls">
+            <div class="stack" style="flex:1 1 auto">
+              <label for="searchInput">Cerca</label>
+              <input id="searchInput" type="search" placeholder="Cerca in tabella (testo, date, orari)…" />
+            </div>
+            <button class="btn" id="btnToggleAll" type="button" title="Mostra tutto il calendario">📅 Mostra tutto</button>
           </div>
-          <button class="btn" id="btnToggleAll" type="button" title="Mostra tutto il calendario">📅 Mostra tutto</button>
+        </div>
+
+        <!-- Destra: legenda -->
+        <div class="card">
+          <div class="inner legend">
+            <div class="legend-title">Legenda</div>
+            <div class="legend-item">
+              <span class="legend-chip legend-chip--orange" aria-hidden="true"></span>
+              <span>Data evidenziata in <strong>arancione</strong>: meno di <strong>8h</strong> di lezione nel giorno.</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-chip legend-chip--orange" aria-hidden="true"></span>
+              <span>Se la <span class="legend-date-red">data</span> è anche <strong>in rosso</strong>: meno o uguale a <strong>4h</strong>.</span>
+            </div>
+          </div>
         </div>
       </div>
 

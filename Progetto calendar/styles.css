@@ -30,9 +30,37 @@ h1{font-size:clamp(20px,2.4vw,28px);margin:0}
   border:1px solid var(--border); border-radius:18px; box-shadow:var(--shadow)}
 .card .inner{padding:16px}
 
-/* ---- NUOVO: riga con search a sinistra e bottone a destra ---- */
+/* ---- Riga con search a sinistra e bottone a destra ---- */
 .row-controls{display:flex;align-items:end;gap:12px;justify-content:space-between}
 
+/* ---- NUOVO: layout split 50/50 per controlli e legenda ---- */
+.controls-split {
+  display: flex;
+  grid-template-columns: 1fr;
+  gap: 16px;
+
+  /* 👇 aggiunte per renderlo sticky */
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg);
+  padding-top: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+@media (min-width: 860px) {
+  .controls-split {
+    flex-direction: row;
+  }
+  .controls-split > * {
+    flex: 1;
+    min-width: 0; /* prevents overflow from children with long content */
+  }
+}
+
+
+/* Bottoni */
 .btn{appearance:none;border:1px solid var(--border);background:var(--surface);
   color:var(--txt);padding:10px 14px;border-radius:12px;cursor:pointer;transition:transform .04s ease, background .2s}
 .btn:hover{background:var(--surface-2)}
@@ -56,9 +84,6 @@ label{font-size:12px;color:var(--muted)}
 select, input[type="search"]{
   width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--txt);
 }
-
-/* card stretta per la ricerca (stessa larghezza della vecchia sidebar) */
-.narrow-card{ width:min(320px,100%); }
 
 /* Tabella */
 .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:16px}
@@ -102,3 +127,15 @@ tbody tr.date-sep td{
 #btnBack:hover { color: var(--txt); }
 
 .hidden-ui { display: none !important; }
+
+/* ---- NUOVO: stile legenda ---- */
+.legend { display:grid; gap:10px; }
+.legend-title { font-weight:600; letter-spacing:.2px; color:var(--muted); }
+.legend-item { display:flex; align-items:center; gap:10px; font-size:14px; line-height:1.3; }
+.legend-chip{
+  width:28px; height:18px; border-radius:6px;
+  border:1px solid var(--border);
+  background: linear-gradient(180deg, rgba(255,193,7,.25), rgba(255,159,67,.22));
+  box-shadow: inset 0 1px 0 rgba(255,193,7,.25);
+}
+.legend-date-red{ color: var(--danger); font-weight:600; }
