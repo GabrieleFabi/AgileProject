@@ -243,8 +243,8 @@ function fmtDateIT(d) {
       year: "2-digit",
     }).format(d);
 
-    // Giorno sopra, data sotto
-    return `${weekday}\n${datePart}`;
+    // Esempio: lun 27/10/25
+    return `${weekday} ${datePart}`;
   } catch (e) {
     if (d instanceof Date) {
       const days = ["dom", "lun", "mar", "mer", "gio", "ven", "sab"];
@@ -252,12 +252,11 @@ function fmtDateIT(d) {
       const y = String(d.getFullYear()).slice(-2);
       const m = String(d.getMonth() + 1).padStart(2, "0");
       const da = String(d.getDate()).padStart(2, "0");
-      return `${wd}\n${da}/${m}/${y}`;
+      return `${wd} ${da}/${m}/${y}`;
     }
     return String(d);
   }
 }
-
 
 function isLikelyTimeHeader(h) {
   return !!h && TIME_HEADER_RE.test(String(h).trim());
@@ -448,13 +447,16 @@ function renderTable(_headersInput, rowsBase) {
       const r = filtered[idx];
       const key = dateKeyFromVal(r[coverageDateHeader]);
       const minutes = dayCoverage.get(key) || 0;
-      tr.classList.remove("day-short");
-      if (dateIdxInRendered >= 0)
+
+      // pulizia stati precedenti
+      tr.classList.remove("day-short", "day-very-short");
+      if (dateIdxInRendered >= 0) {
         tr.children[dateIdxInRendered]?.classList.remove("date-red");
+      }
+
+      // <4h = rosso chiaro (riga), 4–8h = arancione (riga)
       if (minutes <= 240) {
-        tr.classList.add("day-short");
-        if (dateIdxInRendered >= 0)
-          tr.children[dateIdxInRendered]?.classList.add("date-red");
+        tr.classList.add("day-very-short");
       } else if (minutes < 480) {
         tr.classList.add("day-short");
       }
