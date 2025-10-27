@@ -538,10 +538,9 @@ function applyYearChoice(year) {
   localStorage.setItem("cal-anno", selectedYear);
   yearLabel.textContent = `Anno ${selectedYear}`;
 
-  // Resetta il logo quando si cambia anno
   const logo = document.getElementById("courseLogo");
   if (logo) {
-    logo.textContent = "";
+    logo.textContent = "ITS"; // 👈 mostra ITS nella selezione corso
     logo.classList.remove("active-logo");
   }
 
@@ -581,7 +580,6 @@ function goToCalendarWithCourse(courseKey) {
     logo.textContent = courseKey.charAt(0).toUpperCase() + courseKey.slice(1);
     logo.classList.add("active-logo");
   }
-
 }
 
 // --- Toggle "Mostra tutto" ----------------------------------------------
@@ -596,12 +594,21 @@ function updateToggleButton() {
 fileInput?.addEventListener("change", (e) => handleFile(e.target.files[0]));
 $("#btnBack")?.addEventListener("click", () => {
   localStorage.removeItem("cal-anno");
+
   landing.classList.remove("hidden");
   appSection.classList.add("hidden");
   courseSection.classList.add("hidden");
   yearLabel.textContent = "Scegli un anno per iniziare";
   pendingSheetName = null;
+
+  // 👇 resetta anche il logo
+  const logo = document.getElementById("courseLogo");
+  if (logo) {
+    logo.textContent = "ITS";
+    logo.classList.remove("active-logo");
+  }
 });
+
 sheetSelect?.addEventListener("change", (e) => loadSheet(e.target.value));
 
 // rigenera sempre partendo dagli header grezzi
@@ -637,6 +644,11 @@ $$("#courseButtons [data-course]").forEach((btn) => {
 
 // Init --------------------------------------------------------------------
 (function init() {
+  const logo = document.getElementById("courseLogo");
+  if (logo) {
+    logo.textContent = "ITS"; // 👈 logo iniziale “ITS” sulla home
+  }
+
   const saved = localStorage.getItem("cal-anno");
   if (saved === "1" || saved === "2") {
     applyYearChoice(saved);
