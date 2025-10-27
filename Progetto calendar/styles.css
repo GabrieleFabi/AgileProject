@@ -47,12 +47,30 @@ header {
   gap: 12px;
 }
 .logo {
-  width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 70px;
   height: 40px;
-  border-radius: 12px;
-  background: radial-gradient(circle at 30% 30%, var(--brand), #4c74ff);
+  padding: 0 12px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #6ea8fe, #4c74ff);
   box-shadow: var(--shadow);
+  color: #061129;
+  font-weight: 600;
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.25s ease;
 }
+
+/* Quando mostra il nome del corso */
+.logo.active-logo {
+  width: auto;
+  padding: 0 16px;
+  border-radius: 10px;
+}
+
 h1 {
   font-size: clamp(20px, 2.4vw, 28px);
   margin: 0;

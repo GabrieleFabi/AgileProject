@@ -538,6 +538,13 @@ function applyYearChoice(year) {
   localStorage.setItem("cal-anno", selectedYear);
   yearLabel.textContent = `Anno ${selectedYear}`;
 
+  // Resetta il logo quando si cambia anno
+  const logo = document.getElementById("courseLogo");
+  if (logo) {
+    logo.textContent = "";
+    logo.classList.remove("active-logo");
+  }
+
   landing.classList.add("hidden");
   appSection.classList.add("hidden");
   courseSection.classList.remove("hidden");
@@ -567,6 +574,14 @@ function goToCalendarWithCourse(courseKey) {
     sheetSelect.value = pendingSheetName;
     loadSheet(pendingSheetName);
   }
+
+  // Aggiorna logo con il nome del corso
+  const logo = document.getElementById("courseLogo");
+  if (logo) {
+    logo.textContent = courseKey.charAt(0).toUpperCase() + courseKey.slice(1);
+    logo.classList.add("active-logo");
+  }
+
 }
 
 // --- Toggle "Mostra tutto" ----------------------------------------------
