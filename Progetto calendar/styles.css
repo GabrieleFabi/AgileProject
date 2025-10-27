@@ -219,10 +219,13 @@ input[type="search"] {
 
 /* Tabella */
 .table-wrap {
-  overflow: auto;
-  border: 1px solid var(--border);
-  border-radius: 16px;
+  overflow: auto;                /* serve allo scroll orizzontale su mobile */
+  border: none;                  /* ⬅️ niente secondo bordo */
+  border-radius: 6px;           /* solo per ammorbidire dentro */
+  padding: 6px;                 /* il padding extra che volevi */
+  background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
 }
+
 table {
   width: 100%;
   border-collapse: separate;
