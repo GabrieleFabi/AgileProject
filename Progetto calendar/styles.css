@@ -112,7 +112,7 @@ select, input[type="search"]{
 table{width:100%;border-collapse:separate;border-spacing:0;min-width:720px}
 thead th{position:sticky;top:0;background:linear-gradient(180deg, #101a37, #0c1530);z-index:1;border-bottom:1px solid var(--border)}
 th, td{
-  padding:12px 1px;              /* top/bottom invariati, laterali 6px */
+  padding:12px 6px;              /* top/bottom invariati, laterali 6px */
   text-align:left;
   border-bottom:1px solid rgba(255,255,255,.06)
 }
@@ -234,3 +234,16 @@ tbody tr.date-sep td{ border-top: 2px solid rgba(110,168,254,.35); padding-top: 
     line-height: 1.1;
   }
 }
+
+/* Colonna Data più stretta: solo quanto il testo */
+@media (max-width: 520px){
+  th:nth-child(1),
+  td:nth-child(1){
+    text-align: center;
+    width: 64px;               /* ridotta rispetto alle altre */
+    white-space: nowrap;       /* evita che la data vada su due righe */
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+
