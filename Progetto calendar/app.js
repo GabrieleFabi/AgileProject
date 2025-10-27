@@ -19,10 +19,11 @@ const yearLabel = $('#yearLabel');
 const courseSection = $('#courseSection');
 
 let workbook = null;
+let baseHeaders = [];           // 👈 headers originali del foglio (nuovo)
 let currentHeaders = [];
 let currentData = [];           // ultimo dataset renderizzato (post filtro data/ricerca)
-let allRows = [];               // NEW: tutte le righe del foglio (sorgente per ogni render)
-let showAll = false;            // NEW: stato toggle "Mostra tutto"
+let allRows = [];               // tutte le righe del foglio (sorgente per ogni render)
+let showAll = false;            // stato toggle "Mostra tutto"
 
 let sortState = {key:null, dir:1};
 let selectedYear = null;
@@ -155,26 +156,28 @@ function computeDayCoverage(headers, rows){
     const key = dateKeyFromVal(r[dateH]); const sMin = toMinutes(r[startH]); const eMin = toMinutes(r[endH]);
     if(sMin!=null && eMin!=null && eMin>sMin){ if(!map.has(key)) map.set(key, {intervals:[]}); map.get(key).intervals.push({start:sMin, end:eMin}); }
   });
-  for(const [k,obj] of map.entries()){ dayCoverage.set(k, coveredMinutesWithinNeeds(obj.intervals)); }
+  for(const [k,obj] of map.entries()){ dayCoverage.set(k, coveredMinutesWithinNeeds(obj.intervalts || obj.intervals)); }
 }
 
 // Rendering tabella -------------------------------------------------------
-function renderTable(headers, rowsBase){
+function renderTable(headersInput, rowsBase){
+  // 👇 Sempre riparti dagli header originali del foglio (baseHeaders)
+  let headers = baseHeaders.slice();
   let rows = rowsBase.slice();
+
   headers = headers.filter(h => !shouldDropHeader(h, rows));
 
   // --- Vista mobile: combina Dalle+Alle in "Orario" e nasconde UF ---
   const isMobile = window.innerWidth <= 520;
   if (isMobile) {
-    // Unisci Dalle + Alle
     const startH = autoDetectStartHeader(headers);
     const endH   = autoDetectEndHeader(headers);
     if (startH && endH) {
       const combinedHeader = 'Orario';
       const dateH = autoDetectDateHeader(headers);
-      // rimuovi Dalle e Alle
+
+      // rimuovi Dalle e Alle e inserisci "Orario" vicino a Data
       headers = headers.filter(h => h !== startH && h !== endH);
-      // inserisci "Orario" dopo la colonna Data se c'è
       const datePos = dateH ? headers.indexOf(dateH) : -1;
       const insertPos = datePos >= 0 ? datePos + 1 : 0;
       headers.splice(insertPos, 0, combinedHeader);
@@ -182,7 +185,6 @@ function renderTable(headers, rowsBase){
       rows = rows.map(r => {
         const start = prettyValue(r[startH], startH);
         const end   = prettyValue(r[endH], endH);
-        // 3 righe: start / "-" / end
         const startLine = start || '';
         const dashLine  = (start && end) ? '-' : '';
         const endLine   = end   || '';
@@ -191,8 +193,7 @@ function renderTable(headers, rowsBase){
           [combinedHeader]: `${startLine}\n${dashLine}\n${endLine}` 
         };
       });
-    } 
-
+    }
     // Nascondi colonna UF se esiste
     headers = headers.filter(h => !/^uf$/i.test(String(h).trim()));
   }
@@ -231,7 +232,7 @@ function renderTable(headers, rowsBase){
     th.addEventListener('click', ()=>{ 
       if (sortState.key === h){ sortState.dir *= -1 } 
       else { sortState.key = h; sortState.dir = 1 } 
-      renderTable(headers, rowsBase); 
+      renderTable(baseHeaders, allRows); 
     });
     trh.appendChild(th);
   });
@@ -290,8 +291,6 @@ function renderTable(headers, rowsBase){
   renderOptions(timeColumnSelect, ['— nessuna —', ...headers]);
 }
 
-
-
 function sortIcon(h){ if(sortState.key !== h) return '↕'; return sortState.dir === 1 ? '↑' : '↓' }
 
 // Import e caricamento ----------------------------------------------------
@@ -326,16 +325,18 @@ function loadSheet(name){
   const ws = workbook.Sheets[name];
   const {headers, rows} = excelToJson(ws);
 
+  // headers grezzi disponibili per ogni render
+  baseHeaders = headers.slice();     // 👈 salva headers originali
   // precomputo copertura
-  computeDayCoverage(headers, rows);
+  computeDayCoverage(baseHeaders, rows);
 
   // sorgente globale per render
   allRows = rows.slice();
-  currentHeaders = headers.slice();
-  showAll = false;             // si parte da "da oggi"
+  currentHeaders = baseHeaders.slice();
+  showAll = false;                   // si parte da "da oggi"
   updateToggleButton();
 
-  renderTable(currentHeaders, allRows);
+  renderTable(baseHeaders, allRows);
 }
 
 // CLEAR -------------------------------------------------------------------
@@ -346,6 +347,7 @@ function clearAll(){
 
   currentData = [];
   currentHeaders = [];
+  baseHeaders = [];
   allRows = [];
   showAll = false;
   updateToggleButton();
@@ -416,14 +418,15 @@ $('#btnBack')?.addEventListener('click', () => {
 });
 sheetSelect?.addEventListener('change', e=> loadSheet(e.target.value));
 
-searchInput?.addEventListener('input', ()=> renderTable(currentHeaders, allRows));
-dateColumnSelect?.addEventListener('change', ()=> renderTable(currentHeaders, allRows));
-timeColumnSelect?.addEventListener('change', ()=> renderTable(currentHeaders, allRows));
+// 👇 rigenera sempre partendo dagli header grezzi (baseHeaders)
+searchInput?.addEventListener('input', ()=> renderTable(baseHeaders, allRows));
+dateColumnSelect?.addEventListener('change', ()=> renderTable(baseHeaders, allRows));
+timeColumnSelect?.addEventListener('change', ()=> renderTable(baseHeaders, allRows));
 
 $('#btnToggleAll')?.addEventListener('click', ()=>{
   showAll = !showAll;
   updateToggleButton();
-  renderTable(currentHeaders, allRows);
+  renderTable(baseHeaders, allRows);
 });
 
 $('#btnClearTop')?.addEventListener('click', clearAll);
