@@ -346,7 +346,7 @@ tbody tr.date-sep td {
 @media (min-width: 860px) {
   .controls-split {
     flex-direction: row;
-    position: sticky; /* sticky solo su desktop */
+    position: sticky;   /* sticky solo su desktop */
     top: 0;
     z-index: 100;
   }
@@ -356,63 +356,46 @@ tbody tr.date-sep td {
   }
 }
 
-/* Mobile */
+/* Mobile generale */
 @media (max-width: 860px) {
-  .wrap {
-    padding: 0 12px;
-  }
+  .wrap { padding: 0 12px; }
 
-  /* Header a colonna piena */
+  /* Header centrato */
   header {
     flex-direction: column;
-    align-items: stretch;
+    align-items: center;
+    text-align: center;
     gap: 12px;
   }
   .title {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
     text-align: center;
   }
+  /* Pulsante e badge centrati (annulla eventuali margin inline) */
   #btnBack,
   .badge {
-    width: 100%;
-    align-self: stretch;
+    width: auto;
+    margin-left: 0 !important;
+    align-self: center;
     justify-content: center;
     text-align: center;
     border-radius: 12px;
   }
 
   /* Controlli: colonna piena */
-  .controls-split {
-    flex-direction: column;
-  } /* non sticky (mobile-first) */
-  .row-controls {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-  }
-  .row-controls .btn {
-    width: 100%;
-  }
-  .card .inner {
-    padding: 14px;
-  }
-  label {
-    font-size: 12px;
-  }
+  .controls-split { flex-direction: column; } /* non sticky (mobile-first) */
+  .row-controls { flex-direction: column; align-items: stretch; gap: 10px; }
+  .row-controls .btn { width: 100%; }
+  .card .inner { padding: 14px; }
+  label { font-size: 12px; }
 
-  /* Tabella compatta, senza zoom */
-  .table-wrap {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    border-radius: 12px;
-  }
-  table {
-    width: 100%;
-    min-width: 0;
-    table-layout: fixed;
-  }
-  thead,
-  tbody {
+  /* Tabella compatta */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 12px; }
+  table { width: 100%; min-width: 0; table-layout: fixed; }
+  thead, tbody {
     padding: 8px;
     font-size: 12px;
     line-height: 1.2;
@@ -421,50 +404,38 @@ tbody tr.date-sep td {
     white-space: normal;
   }
 
-  /* 4ª colonna = "Modulo": può andare a capo più liberamente */
-  th:nth-child(4),
-  td:nth-child(4) {
+  /* 4ª colonna = "Modulo": può andare a capo liberamente */
+  th:nth-child(4), td:nth-child(4) {
     white-space: normal;
     word-break: normal;
     overflow-wrap: break-word;
   }
 }
 
-/* Schermi molto stretti */
-@media (max-width: 420px) {
-  h1 {
-    font-size: 22px;
-  }
-  .badge {
-    font-size: 12px;
-  }
-  .btn.big {
-    font-size: 16px;
-    padding: 16px 22px;
-  }
-  .legend-item {
-    font-size: 13px;
-  }
-}
-
+/* Mobile compatto: colonne Data e Orario */
 @media (max-width: 520px) {
-  th:nth-child(2),
-  td:nth-child(2) {
-    white-space: pre-line; /* rispetta i \n: va a capo */
+  /* Colonna Orario (2ª): 09:00 \n - \n 13:00 */
+  th:nth-child(2), td:nth-child(2) {
+    white-space: pre-line;          /* rispetta i \n */
     text-align: center;
-    width: 56px; /* più stretta; regola a piacere */
+    width: 56px;
     font-variant-numeric: tabular-nums;
     line-height: 1.1;
   }
-}
-
-/* Colonna Data più stretta: solo quanto il testo */
-@media (max-width: 520px) {
-  th:nth-child(1),
-  td:nth-child(1) {
+  /* Colonna Data (1ª): solo quanto il testo */
+  th:nth-child(1), td:nth-child(1) {
     text-align: center;
-    width: 64px; /* ridotta rispetto alle altre */
-    white-space: nowrap; /* evita che la data vada su due righe */
+    width: 64px;
+    white-space: nowrap;
     font-variant-numeric: tabular-nums;
   }
 }
+
+/* Schermi molto stretti */
+@media (max-width: 420px) {
+  h1 { font-size: 22px; }
+  .badge { font-size: 12px; }
+  .btn.big { font-size: 16px; padding: 16px 22px; }
+  .legend-item { font-size: 13px; }
+}
+
