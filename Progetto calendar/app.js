@@ -644,17 +644,21 @@ $$("#courseButtons [data-course]").forEach((btn) => {
 
 // Init --------------------------------------------------------------------
 (function init() {
+  // Mostra SEMPRE la scelta anno all'avvio
+  localStorage.removeItem("cal-anno");     // opzionale ma utile: azzera lo stato salvato
+
   const logo = document.getElementById("courseLogo");
   if (logo) {
-    logo.textContent = "ITS"; // 👈 logo iniziale “ITS” sulla home
+    logo.textContent = "ITS";              // logo iniziale
+    logo.classList.remove("active-logo");
   }
 
-  const saved = localStorage.getItem("cal-anno");
-  if (saved === "1" || saved === "2") {
-    applyYearChoice(saved);
-  } else {
-    yearLabel.textContent = "Scegli un anno per iniziare";
-  }
+  // Stato sezioni: solo landing visibile
+  landing.classList.remove("hidden");
+  courseSection.classList.add("hidden");
+  appSection.classList.add("hidden");
+  yearLabel.textContent = "Scegli un anno per iniziare";
+
   setStatus("Carica un file Excel");
   updateToggleButton();
 })();
