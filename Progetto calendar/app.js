@@ -163,11 +163,17 @@ function renderTable(headers, rowsBase){
 
       rows = rows.map(r => {
         const start = prettyValue(r[startH], startH);
-        const end = prettyValue(r[endH], endH);
-        const sep = (start && end) ? '–' : '';
-        return { ...r, [combinedHeader]: `${start || ''}${sep}${end || ''}` };
+        const end   = prettyValue(r[endH], endH);
+        // 3 righe: start / "-" / end
+        const startLine = start || '';
+        const dashLine  = (start && end) ? '-' : '';
+        const endLine   = end   || '';
+        return { 
+          ...r, 
+          [combinedHeader]: `${startLine}\n${dashLine}\n${endLine}` 
+        };
       });
-    }
+    } 
 
     // Nascondi colonna UF se esiste
     headers = headers.filter(h => !/^uf$/i.test(String(h).trim()));

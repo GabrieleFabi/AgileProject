@@ -222,3 +222,15 @@ tbody tr.date-sep td{ border-top: 2px solid rgba(110,168,254,.35); padding-top: 
   .btn.big{font-size:16px;padding:16px 22px}
   .legend-item{font-size:13px}
 }
+
+
+@media (max-width: 520px){
+  th:nth-child(2),
+  td:nth-child(2){
+    white-space: pre-line;   /* rispetta i \n: va a capo */
+    text-align: center;
+    width: 56px;             /* più stretta; regola a piacere */
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+}
