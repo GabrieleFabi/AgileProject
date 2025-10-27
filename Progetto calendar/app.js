@@ -117,7 +117,25 @@ function coveredMinutesWithinNeeds(intervals){
   let total = 0; for(const need of needs){ for(const iv of merged){ const start = Math.max(need.start, iv.start); const end = Math.min(need.end, iv.end); if(end > start) total += (end - start); } }
   return total;
 }
-function fmtDateIT(d){ try{ return new Intl.DateTimeFormat('it-IT', {weekday:'short', day:'2-digit', month:'2-digit', year:'numeric'}).format(d); }catch(e){ return d.toISOString().slice(0,10) } }
+function fmtDateIT(d){
+  try {
+    const parts = new Intl.DateTimeFormat('it-IT', {
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit'   // 👈 mostra solo le ultime 2 cifre dell’anno
+    }).format(d);
+    return parts;
+  } catch (e) {
+    if (d instanceof Date) {
+      const y = String(d.getFullYear()).slice(-2);
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const da = String(d.getDate()).padStart(2, '0');
+      return `${da}/${m}/${y}`;
+    }
+    return String(d);
+  }
+}
+
 function isLikelyTimeHeader(h){ return !!h && TIME_HEADER_RE.test(String(h).trim()); }
 function fmtTimeFromFraction(fr){ const total = Math.round(fr * 24 * 60); const hh = Math.floor(total / 60); const mm = total % 60; return String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0'); }
 function fmtTimeFromDate(d){ return String(d.getUTCHours()).padStart(2,'0') + ':' + String(d.getUTCMinutes()).padStart(2,'0'); }
