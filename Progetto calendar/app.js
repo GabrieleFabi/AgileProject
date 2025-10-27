@@ -142,11 +142,38 @@ function computeDayCoverage(headers, rows){
 
 // Rendering tabella -------------------------------------------------------
 function renderTable(headers, rowsBase){
-  // punto di partenza: sempre l’intero dataset o quello passato (non filtrato per data)
   let rows = rowsBase.slice();
   headers = headers.filter(h => !shouldDropHeader(h, rows));
 
-  // filtro per data SOLO se showAll === false
+  // --- Vista mobile: combina Dalle+Alle in "Orario" e nasconde UF ---
+  const isMobile = window.innerWidth <= 520;
+  if (isMobile) {
+    // Unisci Dalle + Alle
+    const startH = autoDetectStartHeader(headers);
+    const endH   = autoDetectEndHeader(headers);
+    if (startH && endH) {
+      const combinedHeader = 'Orario';
+      const dateH = autoDetectDateHeader(headers);
+      // rimuovi Dalle e Alle
+      headers = headers.filter(h => h !== startH && h !== endH);
+      // inserisci "Orario" dopo la colonna Data se c'è
+      const datePos = dateH ? headers.indexOf(dateH) : -1;
+      const insertPos = datePos >= 0 ? datePos + 1 : 0;
+      headers.splice(insertPos, 0, combinedHeader);
+
+      rows = rows.map(r => {
+        const start = prettyValue(r[startH], startH);
+        const end = prettyValue(r[endH], endH);
+        const sep = (start && end) ? '–' : '';
+        return { ...r, [combinedHeader]: `${start || ''}${sep}${end || ''}` };
+      });
+    }
+
+    // Nascondi colonna UF se esiste
+    headers = headers.filter(h => !/^uf$/i.test(String(h).trim()));
+  }
+
+  // --- filtro "da oggi" se non Mostra tutto ---
   const dateHeader = headers.find(h => /^(data|date)$/i.test(String(h).trim()));
   if (dateHeader && !showAll) {
     const today = new Date(); today.setHours(0,0,0,0);
@@ -158,27 +185,36 @@ function renderTable(headers, rowsBase){
     });
   }
 
-  currentHeaders = headers; currentData = rows;
+  currentHeaders = headers; 
+  currentData = rows;
 
   const q = searchInput.value.trim().toLowerCase();
-  const filtered = !q ? rows : rows.filter(row => Object.values(row).some(v => toText(v).includes(q)));
+  const filtered = !q ? rows : rows.filter(row => 
+    Object.values(row).some(v => toText(v).includes(q))
+  );
 
-  if(sortState.key){ filtered.sort((a,b)=> cmp(a[sortState.key], b[sortState.key]) * sortState.dir); }
+  if (sortState.key){ 
+    filtered.sort((a,b)=> cmp(a[sortState.key], b[sortState.key]) * sortState.dir); 
+  }
 
-  // Header
+  // --- Header ---
   tHead.innerHTML = '';
   const trh = document.createElement('tr');
   headers.forEach(h => {
     const th = document.createElement('th');
     th.className = 'sortable';
     th.innerHTML = `<span>${escapeHtml(h)}</span><span class="chev">${sortIcon(h)}</span>`;
-    th.addEventListener('click', ()=>{ if(sortState.key === h){ sortState.dir *= -1 } else { sortState.key = h; sortState.dir = 1 } renderTable(headers, rowsBase); });
+    th.addEventListener('click', ()=>{ 
+      if (sortState.key === h){ sortState.dir *= -1 } 
+      else { sortState.key = h; sortState.dir = 1 } 
+      renderTable(headers, rowsBase); 
+    });
     trh.appendChild(th);
   });
   tHead.appendChild(trh);
   sortHint.classList.toggle('hidden', headers.length === 0);
 
-  // Body
+  // --- Body ---
   tBody.innerHTML = '';
   const frag = document.createDocumentFragment();
   filtered.forEach((row)=>{
@@ -192,7 +228,7 @@ function renderTable(headers, rowsBase){
   });
   tBody.appendChild(frag);
 
-  // Separatore tra date diverse
+  // --- Separatore tra date ---
   const _dateHeaderForSep = autoDetectDateHeader(headers);
   if(_dateHeaderForSep){
     const createdRows2 = [...tBody.querySelectorAll('tr')];
@@ -200,12 +236,13 @@ function renderTable(headers, rowsBase){
     createdRows2.forEach((tr, idx)=>{
       const r = filtered[idx];
       const key = dateKeyFromVal(r[_dateHeaderForSep]);
-      if(idx>0 && key !== prevKey){ tr.classList.add('date-sep'); } else { tr.classList.remove('date-sep'); }
+      if(idx>0 && key !== prevKey){ tr.classList.add('date-sep'); }
+      else { tr.classList.remove('date-sep'); }
       prevKey = key;
     });
   }
 
-  // Evidenziazione basata su PRECOMPUTO
+  // --- Evidenziazione ore giornaliere ---
   if (coverageDateHeader){
     const dateIdxInRendered = headers.indexOf(coverageDateHeader);
     const createdRows = [...tBody.querySelectorAll('tr')];
@@ -213,10 +250,8 @@ function renderTable(headers, rowsBase){
       const r = filtered[idx];
       const key = dateKeyFromVal(r[coverageDateHeader]);
       const minutes = dayCoverage.get(key) || 0;
-
       tr.classList.remove('day-short');
       if (dateIdxInRendered >= 0) tr.children[dateIdxInRendered]?.classList.remove('date-red');
-
       if (minutes <= 240){
         tr.classList.add('day-short');
         if (dateIdxInRendered >= 0) tr.children[dateIdxInRendered]?.classList.add('date-red');
@@ -227,10 +262,11 @@ function renderTable(headers, rowsBase){
   }
 
   rowsCount.textContent = filtered.length ? `${filtered.length} righe visualizzate` : 'Nessun dato da mostrare';
-
   renderOptions(dateColumnSelect, ['— nessuna —', ...headers]);
   renderOptions(timeColumnSelect, ['— nessuna —', ...headers]);
 }
+
+
 
 function sortIcon(h){ if(sortState.key !== h) return '↕'; return sortState.dir === 1 ? '↑' : '↓' }
 
