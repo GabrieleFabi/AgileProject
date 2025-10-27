@@ -230,22 +230,34 @@ function coveredMinutesWithinNeeds(intervals) {
 }
 function fmtDateIT(d) {
   try {
-    const parts = new Intl.DateTimeFormat("it-IT", {
+    if (!(d instanceof Date)) return String(d);
+
+    // Giorno della settimana (es. lun, mar, mer, ...)
+    const weekday = new Intl.DateTimeFormat("it-IT", { weekday: "short" })
+      .format(d)
+      .replace(/\.$/, ""); // rimuove eventuale punto finale
+
+    const datePart = new Intl.DateTimeFormat("it-IT", {
       day: "2-digit",
       month: "2-digit",
       year: "2-digit",
     }).format(d);
-    return parts;
+
+    // Giorno sopra, data sotto
+    return `${weekday}\n${datePart}`;
   } catch (e) {
     if (d instanceof Date) {
+      const days = ["dom", "lun", "mar", "mer", "gio", "ven", "sab"];
+      const wd = days[d.getDay()];
       const y = String(d.getFullYear()).slice(-2);
       const m = String(d.getMonth() + 1).padStart(2, "0");
       const da = String(d.getDate()).padStart(2, "0");
-      return `${da}/${m}/${y}`;
+      return `${wd}\n${da}/${m}/${y}`;
     }
     return String(d);
   }
 }
+
 
 function isLikelyTimeHeader(h) {
   return !!h && TIME_HEADER_RE.test(String(h).trim());

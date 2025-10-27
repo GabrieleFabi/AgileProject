@@ -224,6 +224,14 @@ tbody tr.date-sep td {
 }
 .legend-date-red { color: var(--danger); font-weight: 600; }
 
+/* Forza il ritorno a capo nella colonna data */
+th:nth-child(1), td:nth-child(1) {
+  white-space: pre-line !important; /* rispetta il \n */
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
 /* =========================
    Breakpoints
    ========================= */
@@ -314,3 +322,4 @@ tbody tr.date-sep td {
   .btn.big { font-size: 16px; padding: 16px 22px; }
   .legend-item { font-size: 13px; }
 }
+
