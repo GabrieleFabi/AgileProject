@@ -28,7 +28,7 @@
         />
 
         <button class="btn ghost" id="btnBack" type="button">
-          ⬅️ Torna alla scelta anno
+          ⬅️ Torna alla selezione corso
         </button>
         <div class="badge" id="statusBadge">Nessun file</div>
       </header>
@@ -63,16 +63,11 @@
       <section id="courseSection" class="landing hidden">
         <div class="landing-card">
           <h2>Seleziona il Corso</h2>
-          <div class="landing-buttons" id="courseButtons">
-            <button class="btn big primary" data-course="front">Front</button>
-            <button class="btn big primary" data-course="cyse">Cyse</button>
-            <button class="btn big primary" data-course="dolc">Dolc</button>
-            <button class="btn big primary" data-course="fust">Fust</button>
-            <button class="btn big primary" data-course="ago">Ago</button>
-          </div>
+          <div class="landing-buttons" id="courseButtons"></div>
           <p class="hint" id="courseHint">Scegli un anno per continuare.</p>
         </div>
       </section>
+
 
       <!-- Calendario -->
       <section id="appSection" class="uibox hidden">
@@ -152,6 +147,9 @@
       </section>
     </div>
 
+    <script>
+      window.CALENDAR_XLSX_URL = "/data/calendario.xlsx";
+    </script>
     <script src="app.js" defer></script>
   </body>
 </html>

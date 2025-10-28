@@ -3,9 +3,7 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const statusBadge = $("#statusBadge");
 const btnBack = $("#btnBack");
-const dropZone = $("#dropZone");
 const fileInput = $("#fileInput");
-const sheetSelect = $("#sheetSelect");
 const searchInput = $("#searchInput");
 const dateColumnSelect = $("#dateColumnSelect");
 const timeColumnSelect = $("#timeColumnSelect");
@@ -33,15 +31,37 @@ let pendingSheetName = null;
 let dayCoverage = new Map(); // key (YYYY-MM-DD) -> minuti
 let coverageDateHeader = null; // nome colonna data usato per calcolo
 
-const COURSE_TO_SHEET = {
-  front: "Frot2",
-  cyse: "Cyse2",
-  dolc: "Dolc2",
-  fust: "Fust2",
-  ago: "AgoD2",
+// Corsi per anno: key = anno ("1" | "2")
+const COURSES = {
+  "1": [
+    { key: "fust", label: "Fust", sheet: "Fust A1" },
+    { key: "cyse", label: "Cyse", sheet: "Cyse A1" },
+    { key: "arti", label: "Arti", sheet: "Arti A1" },
+    { key: "syam", label: "Syam", sheet: "Syam A1" },
+  ],
+  "2": [
+    { key: "front", label: "Front", sheet: "Frot2" },
+    { key: "cyse", label: "Cyse", sheet: "Cyse2" },
+    { key: "dolc", label: "Dolc", sheet: "Dolc2" },
+    { key: "fust", label: "Fust", sheet: "Fust2" },
+    { key: "ago",  label: "Ago",  sheet: "AgoD2"  },
+  ],
 };
 
+
 const DROP_HEADER_RE = /^(colonna|giorno|fust2)$/i;
+
+// --- Avvio automatico in base alla query string ---
+window.addEventListener("DOMContentLoaded", () => {
+  const params = new URLSearchParams(window.location.search);
+  const forcedYear = params.get("year");
+  if (forcedYear === "1" || forcedYear === "2") {
+    // salta la home e vai subito alla selezione corso
+    landing.classList.add("hidden");
+    applyYearChoice(forcedYear);
+  }
+});
+
 
 function isEmptyCell(v) {
   if (v === null || v === undefined) return true;
@@ -161,6 +181,45 @@ function renderOptions(selectEl, options) {
   selectEl.innerHTML = options
     .map((o) => `<option value="${String(o)}">${String(o)}</option>`)
     .join("");
+}
+
+
+function chooseDefaultSheetFrom(names) {
+  const cand = names.find(n => n.toLowerCase().includes("fust")) || names[0];
+  return cand;
+}
+
+
+async function fetchAndLoadXlsx(url) {
+  try {
+    setStatus("Carico calendario…");
+    const bust = url + (url.includes("?") ? "&" : "?") + "_=" + Date.now();
+    const res = await fetch(bust, { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const ab = await res.arrayBuffer();
+    workbook = XLSX.read(ab, { type: "array" });
+
+    // Popola select fogli
+    sheetSelect.innerHTML = "";
+    workbook.SheetNames.forEach((name, i) => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = `${i + 1}. ${name}`;
+      sheetSelect.appendChild(opt);
+    });
+
+    const defaultSheet =
+      workbook.SheetNames.find(n => n.toLowerCase().includes("fust")) ||
+      workbook.SheetNames[0];
+
+    sheetSelect.value = defaultSheet;
+    loadSheet(defaultSheet);
+
+    setStatus("Pronto (XLSX)", "ok");
+  } catch (e) {
+    console.error(e);
+    setStatus("Errore caricamento XLSX", "err");
+  }
 }
 
 // --- Helpers date/time ---------------------------------------------------
@@ -327,6 +386,24 @@ function dateKeyFromVal(v) {
   return String(v);
 }
 
+function renderCourseButtons(year) {
+  const area = $("#courseButtons");
+  const list = COURSES[String(year)] || [];
+  area.innerHTML = list
+    .map(
+      c => `<button class="btn big primary" data-course="${c.key}">${c.label}</button>`
+    )
+    .join("");
+
+  // collega i click dei nuovi bottoni
+  $$("#courseButtons [data-course]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      goToCalendarWithCourse(btn.dataset.course);
+    });
+  });
+}
+
+
 // --- PRECOMPUTO copertura -----------------------------------------------
 function computeDayCoverage(headers, rows) {
   dayCoverage = new Map();
@@ -490,6 +567,26 @@ function renderTable(_headersInput, rowsBase) {
   renderOptions(timeColumnSelect, ["— nessuna —", ...headers]);
 }
 
+
+function scheduleMidnightRefresh() {
+  if (!window.CALENDAR_XLSX_URL) return;
+  const now = new Date();
+  const next = new Date(now);
+  next.setDate(now.getDate() + 1);
+  next.setHours(0, 5, 0, 0); // 00:05
+
+  const ms = next - now;
+  setTimeout(async () => {
+    try {
+      await fetchAndLoadXlsx(window.CALENDAR_XLSX_URL);
+    } finally {
+      scheduleMidnightRefresh();
+    }
+  }, ms);
+}
+
+
+
 // Import e caricamento ----------------------------------------------------
 async function handleFile(file) {
   if (!file) return;
@@ -574,34 +671,36 @@ function applyYearChoice(year) {
 
   const logo = document.getElementById("courseLogo");
   if (logo) {
-    logo.textContent = "ITS"; // 👈 mostra ITS nella selezione corso
+    logo.textContent = "ITS";
     logo.classList.remove("active-logo");
   }
 
+  // mostra la pagina corsi
   landing.classList.add("hidden");
   appSection.classList.add("hidden");
   courseSection.classList.remove("hidden");
-  btnBack.classList.remove("hidden"); // mostra torna indietro quando si entra nella selezione corso
 
+  // costruisci i bottoni in base all'anno
+  renderCourseButtons(selectedYear);
 
-  const isYear2 = selectedYear === "2";
-  $("#courseHint").textContent = isYear2
-    ? "Scegli un corso per aprire il calendario (foglio pre-selezionato)."
-    : "Per l’Anno 1 non è disponibile il calendario: i bottoni non sono attivi.";
-  $$("#courseButtons [data-course]").forEach((btn) => {
-    btn.disabled = !isYear2;
-  });
+  // hint
+  $("#courseHint").textContent =
+    selectedYear === "1"
+      ? "Seleziona un corso dell’Anno 1 per aprire il calendario."
+      : "Seleziona un corso dell’Anno 2 per aprire il calendario.";
 }
 
+
 function goToCalendarWithCourse(courseKey) {
-  if (selectedYear !== "2") return;
-  const wanted = COURSE_TO_SHEET[courseKey];
-  pendingSheetName = wanted || null;
+  const list = COURSES[String(selectedYear)] || [];
+  const course = list.find(c => c.key === courseKey);
+  if (!course) return;
+
+  pendingSheetName = course.sheet || null;
 
   courseSection.classList.add("hidden");
   appSection.classList.remove("hidden");
-  btnBack.classList.remove("hidden"); // resta visibile anche nel calendario
-
+  btnBack.classList.remove("hidden");
 
   if (
     workbook &&
@@ -612,13 +711,14 @@ function goToCalendarWithCourse(courseKey) {
     loadSheet(pendingSheetName);
   }
 
-  // Aggiorna logo con il nome del corso
+  // logo con nome corso
   const logo = document.getElementById("courseLogo");
   if (logo) {
-    logo.textContent = courseKey.charAt(0).toUpperCase() + courseKey.slice(1);
+    logo.textContent = course.label;
     logo.classList.add("active-logo");
   }
 }
+
 
 // --- Toggle "Mostra tutto" ----------------------------------------------
 function updateToggleButton() {
@@ -631,26 +731,26 @@ function updateToggleButton() {
 // Eventi UI ---------------------------------------------------------------
 fileInput?.addEventListener("change", (e) => handleFile(e.target.files[0]));
 $("#btnBack")?.addEventListener("click", () => {
-  localStorage.removeItem("cal-anno");
-
-  landing.classList.remove("hidden");
+  // torna al menu corsi
   appSection.classList.add("hidden");
-  courseSection.classList.add("hidden");
-  btnBack.classList.add("hidden"); // nascondi quando si torna alla landing
+  courseSection.classList.remove("hidden");
+  btnBack.classList.add("hidden"); // nascondi perché è la prima pagina visibile ora
 
-
-  yearLabel.textContent = "Scegli un anno per iniziare";
   pendingSheetName = null;
 
-  // 👇 resetta anche il logo
+  // ripristina il logo
   const logo = document.getElementById("courseLogo");
   if (logo) {
     logo.textContent = "ITS";
     logo.classList.remove("active-logo");
   }
+
+  yearLabel.textContent = `Anno ${selectedYear}`;
 });
 
-sheetSelect?.addEventListener("change", (e) => loadSheet(e.target.value));
+
+sheetSelect.addEventListener("change", (e) => loadSheet(e.target.value));
+
 
 // rigenera sempre partendo dagli header grezzi
 searchInput?.addEventListener("input", () => renderTable(baseHeaders, allRows));
@@ -675,32 +775,29 @@ $("#btnLoadTop")?.addEventListener("click", () => {
 $$(".landing [data-anno]").forEach((btn) => {
   btn.addEventListener("click", () => applyYearChoice(btn.dataset.anno));
 });
-$$("#courseButtons [data-course]").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    if (selectedYear === "2") {
-      goToCalendarWithCourse(btn.dataset.course);
-    }
-  });
-});
+
 
 // Init --------------------------------------------------------------------
 (function init() {
-  // Mostra SEMPRE la scelta anno all'avvio
-  localStorage.removeItem("cal-anno"); // opzionale ma utile: azzera lo stato salvato
+  if (window.CALENDAR_XLSX_URL) {
+    fetchAndLoadXlsx(window.CALENDAR_XLSX_URL);
+    scheduleMidnightRefresh();
+  }
+
+  localStorage.removeItem("cal-anno");
 
   const logo = document.getElementById("courseLogo");
   if (logo) {
-    logo.textContent = "ITS"; // logo iniziale
+    logo.textContent = "ITS";
     logo.classList.remove("active-logo");
   }
 
-  // Stato sezioni: solo landing visibile
   landing.classList.remove("hidden");
   courseSection.classList.add("hidden");
   appSection.classList.add("hidden");
-  btnBack.classList.add("hidden"); // all'avvio non visibile
+  btnBack.classList.add("hidden");
   yearLabel.textContent = "Scegli un anno per iniziare";
 
-  setStatus("Carica un file Excel");
+  setStatus("Carico calendario…");
   updateToggleButton();
 })();
