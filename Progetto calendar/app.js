@@ -53,6 +53,18 @@ const COURSES = {
 
 const DROP_HEADER_RE = /^(colonna|giorno|fust2)$/i;
 
+// --- Avvio automatico in base alla query string ---
+window.addEventListener("DOMContentLoaded", () => {
+  const params = new URLSearchParams(window.location.search);
+  const forcedYear = params.get("year");
+  if (forcedYear === "1" || forcedYear === "2") {
+    // salta la home e vai subito alla selezione corso
+    landing.classList.add("hidden");
+    applyYearChoice(forcedYear);
+  }
+});
+
+
 function isEmptyCell(v) {
   if (v === null || v === undefined) return true;
   if (v instanceof Date) return false;
