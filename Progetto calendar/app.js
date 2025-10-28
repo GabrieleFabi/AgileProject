@@ -2,6 +2,7 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const statusBadge = $("#statusBadge");
+const btnBack = $("#btnBack");
 const dropZone = $("#dropZone");
 const fileInput = $("#fileInput");
 const sheetSelect = $("#sheetSelect");
@@ -37,7 +38,7 @@ const COURSE_TO_SHEET = {
   cyse: "Cyse2",
   dolc: "Dolc2",
   fust: "Fust2",
-  ago: "Ago2",
+  ago: "AgoD2",
 };
 
 const DROP_HEADER_RE = /^(colonna|giorno|fust2)$/i;
@@ -49,11 +50,13 @@ function isEmptyCell(v) {
   const s = String(v).trim();
   return s === "" || s === "-" || s === "—";
 }
+
 function shouldDropHeader(h, rows) {
   if (!h) return true;
   if (DROP_HEADER_RE.test(String(h).trim())) return true;
   return rows.every((r) => isEmptyCell(r[h]));
 }
+
 function setStatus(text, tone = "info") {
   statusBadge.textContent = text;
   const color =
@@ -70,6 +73,7 @@ function setStatus(text, tone = "info") {
     -20
   )})`;
 }
+
 function shade(hex, percent) {
   if (!hex.startsWith("#")) return hex;
   const num = parseInt(hex.slice(1), 16);
@@ -104,6 +108,7 @@ function excelToJson(ws) {
   });
   return { headers, rows };
 }
+
 function sanitizeHeader(h) {
   return h
     .trim()
@@ -112,6 +117,7 @@ function sanitizeHeader(h) {
     .replace(/[<>"']/g, "")
     .slice(0, 80);
 }
+
 function colName(i) {
   let s = "";
   i++;
@@ -122,9 +128,11 @@ function colName(i) {
   }
   return s;
 }
+
 function isExcelDate(v) {
   return typeof v === "number" && v > 59 && v < 60000;
 }
+
 function formatExcelDate(v) {
   try {
     const d = XLSX.SSF.parse_date_code(v);
@@ -143,10 +151,12 @@ function formatExcelDate(v) {
     return v;
   }
 }
+
 function formatCell(v) {
   if (isExcelDate(v)) return formatExcelDate(v);
   return v;
 }
+
 function renderOptions(selectEl, options) {
   selectEl.innerHTML = options
     .map((o) => `<option value="${String(o)}">${String(o)}</option>`)
@@ -169,12 +179,15 @@ function autoDetectDateHeader(headers) {
   if (chosen && headers.includes(chosen)) return chosen;
   return headers.find((h) => DATE_HEADER_RE.test(String(h))) || null;
 }
+
 function autoDetectStartHeader(headers) {
   return headers.find((h) => START_HEADER_RE.test(String(h))) || null;
 }
+
 function autoDetectEndHeader(headers) {
   return headers.find((h) => END_HEADER_RE.test(String(h))) || null;
 }
+
 function toMinutes(v) {
   if (v instanceof Date) return v.getUTCHours() * 60 + v.getUTCMinutes();
   if (typeof v === "number") {
@@ -193,6 +206,7 @@ function toMinutes(v) {
   }
   return null;
 }
+
 function mergeIntervals(intervals) {
   const arr = intervals
     .filter(
@@ -212,6 +226,7 @@ function mergeIntervals(intervals) {
   }
   return merged;
 }
+
 function coveredMinutesWithinNeeds(intervals) {
   const merged = mergeIntervals(intervals),
     needs = [
@@ -228,20 +243,32 @@ function coveredMinutesWithinNeeds(intervals) {
   }
   return total;
 }
+
 function fmtDateIT(d) {
   try {
-    const parts = new Intl.DateTimeFormat("it-IT", {
+    if (!(d instanceof Date)) return String(d);
+
+    // Giorno della settimana (es. lun, mar, mer, ...)
+    const weekday = new Intl.DateTimeFormat("it-IT", { weekday: "short" })
+      .format(d)
+      .replace(/\.$/, ""); // rimuove eventuale punto finale
+
+    const datePart = new Intl.DateTimeFormat("it-IT", {
       day: "2-digit",
       month: "2-digit",
       year: "2-digit",
     }).format(d);
-    return parts;
+
+    // Esempio: lun 27/10/25
+    return `${weekday} ${datePart}`;
   } catch (e) {
     if (d instanceof Date) {
+      const days = ["dom", "lun", "mar", "mer", "gio", "ven", "sab"];
+      const wd = days[d.getDay()];
       const y = String(d.getFullYear()).slice(-2);
       const m = String(d.getMonth() + 1).padStart(2, "0");
       const da = String(d.getDate()).padStart(2, "0");
-      return `${da}/${m}/${y}`;
+      return `${wd} ${da}/${m}/${y}`;
     }
     return String(d);
   }
@@ -250,12 +277,14 @@ function fmtDateIT(d) {
 function isLikelyTimeHeader(h) {
   return !!h && TIME_HEADER_RE.test(String(h).trim());
 }
+
 function fmtTimeFromFraction(fr) {
   const total = Math.round(fr * 24 * 60);
   const hh = Math.floor(total / 60);
   const mm = total % 60;
   return String(hh).padStart(2, "0") + ":" + String(mm).padStart(2, "0");
 }
+
 function fmtTimeFromDate(d) {
   return (
     String(d.getUTCHours()).padStart(2, "0") +
@@ -263,6 +292,7 @@ function fmtTimeFromDate(d) {
     String(d.getUTCMinutes()).padStart(2, "0")
   );
 }
+
 function prettyValue(v, header) {
   if (v instanceof Date) {
     if (isLikelyTimeHeader(header)) return fmtTimeFromDate(v);
@@ -273,12 +303,14 @@ function prettyValue(v, header) {
   }
   return String(v);
 }
+
 function toText(v) {
   if (v instanceof Date) {
     return v.toISOString().slice(0, 10);
   }
   return String(v).toLowerCase();
 }
+
 function escapeHtml(s) {
   return s.replace(
     /[&<>"']/g,
@@ -288,6 +320,7 @@ function escapeHtml(s) {
       ])
   );
 }
+
 function dateKeyFromVal(v) {
   const d = v instanceof Date ? v : typeof v === "string" ? new Date(v) : null;
   if (d && !isNaN(d)) return d.toISOString().slice(0, 10);
@@ -380,8 +413,6 @@ function renderTable(_headersInput, rowsBase) {
         Object.values(row).some((v) => toText(v).includes(q))
       );
 
-  // ⛔️ NIENTE ORDINAMENTO: rimosso il sort
-  // (non usiamo più sortState né sortIcon)
 
   // --- Header ---
   tHead.innerHTML = "";
@@ -436,13 +467,16 @@ function renderTable(_headersInput, rowsBase) {
       const r = filtered[idx];
       const key = dateKeyFromVal(r[coverageDateHeader]);
       const minutes = dayCoverage.get(key) || 0;
-      tr.classList.remove("day-short");
-      if (dateIdxInRendered >= 0)
+
+      // pulizia stati precedenti
+      tr.classList.remove("day-short", "day-very-short");
+      if (dateIdxInRendered >= 0) {
         tr.children[dateIdxInRendered]?.classList.remove("date-red");
+      }
+
+      // <4h = rosso chiaro (riga), 4–8h = arancione (riga)
       if (minutes <= 240) {
-        tr.classList.add("day-short");
-        if (dateIdxInRendered >= 0)
-          tr.children[dateIdxInRendered]?.classList.add("date-red");
+        tr.classList.add("day-very-short");
       } else if (minutes < 480) {
         tr.classList.add("day-short");
       }
@@ -547,6 +581,8 @@ function applyYearChoice(year) {
   landing.classList.add("hidden");
   appSection.classList.add("hidden");
   courseSection.classList.remove("hidden");
+  btnBack.classList.remove("hidden"); // mostra torna indietro quando si entra nella selezione corso
+
 
   const isYear2 = selectedYear === "2";
   $("#courseHint").textContent = isYear2
@@ -564,6 +600,8 @@ function goToCalendarWithCourse(courseKey) {
 
   courseSection.classList.add("hidden");
   appSection.classList.remove("hidden");
+  btnBack.classList.remove("hidden"); // resta visibile anche nel calendario
+
 
   if (
     workbook &&
@@ -598,6 +636,9 @@ $("#btnBack")?.addEventListener("click", () => {
   landing.classList.remove("hidden");
   appSection.classList.add("hidden");
   courseSection.classList.add("hidden");
+  btnBack.classList.add("hidden"); // nascondi quando si torna alla landing
+
+
   yearLabel.textContent = "Scegli un anno per iniziare";
   pendingSheetName = null;
 
@@ -645,11 +686,11 @@ $$("#courseButtons [data-course]").forEach((btn) => {
 // Init --------------------------------------------------------------------
 (function init() {
   // Mostra SEMPRE la scelta anno all'avvio
-  localStorage.removeItem("cal-anno");     // opzionale ma utile: azzera lo stato salvato
+  localStorage.removeItem("cal-anno"); // opzionale ma utile: azzera lo stato salvato
 
   const logo = document.getElementById("courseLogo");
   if (logo) {
-    logo.textContent = "ITS";              // logo iniziale
+    logo.textContent = "ITS"; // logo iniziale
     logo.classList.remove("active-logo");
   }
 
@@ -657,6 +698,7 @@ $$("#courseButtons [data-course]").forEach((btn) => {
   landing.classList.remove("hidden");
   courseSection.classList.add("hidden");
   appSection.classList.add("hidden");
+  btnBack.classList.add("hidden"); // all'avvio non visibile
   yearLabel.textContent = "Scegli un anno per iniziare";
 
   setStatus("Carica un file Excel");
