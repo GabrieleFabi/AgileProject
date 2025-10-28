@@ -30,6 +30,10 @@ let pendingSheetName = null;
 // copertura giornaliera precomputata
 let dayCoverage = new Map(); // key (YYYY-MM-DD) -> minuti
 let coverageDateHeader = null; // nome colonna data usato per calcolo
+// Penultima-lezione (esame) -----------------------------------------------
+let penultimateKeys = new Set();     // Set di chiavi riga da evidenziare
+let moduleHeaderName = null;         // nome colonna modulo/UF rilevato
+
 
 // Corsi per anno: key = anno ("1" | "2")
 const COURSES = {
@@ -403,6 +407,69 @@ function renderCourseButtons(year) {
   });
 }
 
+// Rileva la colonna "Modulo/UF"
+const MODULE_HEADER_RE = /^(modulo|uf|unit[aà] ?formativa|materia|insegnamento|argomento)$/i;
+function autoDetectModuleHeader(headers) {
+  return headers.find(h => MODULE_HEADER_RE.test(String(h).trim())) || null;
+}
+
+// Chiave univoca per una lezione (per modulo + data + ora-inizio se c'è)
+function keyForRowPenultimate(row, dateH, startH, moduleH) {
+  const mod = row[moduleH] ?? "";
+  const dateKey = dateKeyFromVal(row[dateH]) ?? "";
+  const startMin = toMinutes(row[startH]);
+  const t = (startMin != null) ? String(startMin) : "";
+  return `${mod}__${dateKey}__${t}`;
+}
+
+// Calcola le penultime lezioni per ogni modulo
+function computePenultimateKeys(headers, rows) {
+  penultimateKeys = new Set();
+  moduleHeaderName = autoDetectModuleHeader(headers);
+
+  const dateH  = autoDetectDateHeader(headers);
+  const startH = autoDetectStartHeader(headers);
+
+  if (!moduleHeaderName || !dateH) return;
+
+  // Raggruppa per modulo
+  const groups = new Map();
+  for (const r of rows) {
+    const mod = String(r[moduleHeaderName] ?? "").trim();
+    if (!mod) continue;
+    const dVal = r[dateH];
+    const d = (dVal instanceof Date) ? dVal : new Date(dVal);
+    if (isNaN(d)) continue;
+
+    const sMin = startH ? toMinutes(r[startH]) : null;
+    if (!groups.has(mod)) groups.set(mod, []);
+    groups.get(mod).push({ row: r, d, sMin });
+  }
+
+  // Ordina cronologicamente ogni gruppo e segna la penultima
+  for (const [mod, arr] of groups.entries()) {
+    arr.sort((a, b) => {
+      // ordine per data, poi ora-inizio (se presente)
+      const cmpD = a.d - b.d;
+      if (cmpD !== 0) return cmpD;
+      const aa = (a.sMin ?? -1);
+      const bb = (b.sMin ?? -1);
+      return aa - bb;
+    });
+    if (arr.length >= 2) {
+      const penult = arr[arr.length - 2];
+      const k = keyForRowPenultimate(
+        penult.row,
+        dateH,
+        startH,
+        moduleHeaderName
+      );
+      penultimateKeys.add(k);
+    }
+  }
+}
+
+
 
 // --- PRECOMPUTO copertura -----------------------------------------------
 function computeDayCoverage(headers, rows) {
@@ -502,6 +569,9 @@ function renderTable(_headersInput, rowsBase) {
   });
   tHead.appendChild(trh);
 
+
+
+
   // Nascondi l'hint di ordinamento
   sortHint?.classList.add("hidden");
 
@@ -515,6 +585,17 @@ function renderTable(_headersInput, rowsBase) {
       td.textContent = prettyValue(row[h], h);
       tr.appendChild(td);
     });
+    // Evidenzia "penultima lezione" (esame) in verde
+    {
+      const dateH  = autoDetectDateHeader(baseHeaders);
+      const startH = autoDetectStartHeader(baseHeaders);
+      if (moduleHeaderName && dateH) {
+        const k = keyForRowPenultimate(row, dateH, startH, moduleHeaderName);
+        if (penultimateKeys.has(k)) {
+          tr.classList.add("row-penultimate");
+        }
+      }
+    }
     frag.appendChild(tr);
   });
   tBody.appendChild(frag);
@@ -627,6 +708,7 @@ function loadSheet(name) {
 
   baseHeaders = headers.slice(); // salva headers originali
   computeDayCoverage(baseHeaders, rows);
+  computePenultimateKeys(baseHeaders, rows);
 
   allRows = rows.slice();
   currentHeaders = baseHeaders.slice();

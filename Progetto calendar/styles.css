@@ -369,6 +369,14 @@ tbody tr.day-very-short:hover {
   font-weight: 600;
 }
 
+/* Variante verde (Esame / penultima lezione) */
+.legend-chip--green {
+  --chip-bg1: rgba(16, 185, 129, 0.35);
+  --chip-bg2: rgba(16, 185, 129, 0.22);
+  --chip-border: rgba(16, 185, 129, 0.45);
+  --chip-shadow: rgba(16, 185, 129, 0.28);
+}
+
 /* Separatore cambio data: bordo nero sempre visibile */
 tbody tr.date-sep td {
   border-top: 2px solid #000 !important; /* sempre nero */
@@ -541,4 +549,23 @@ td:nth-child(1) {
   .legend-item {
     font-size: 13px;
   }
+}
+
+
+/* Penultima lezione del modulo (esame): evidenza verde */
+tbody tr.row-penultimate {
+  background: linear-gradient(
+    180deg,
+    rgba(16, 185, 129, 0.18),
+    rgba(16, 185, 129, 0.12)
+  ) !important;
+  box-shadow: inset 0 1px 0 rgba(16, 185, 129, 0.35) !important;
+  position: relative;
+}
+tbody tr.row-penultimate:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(16, 185, 129, 0.28),
+    rgba(16, 185, 129, 0.2)
+  ) !important;
 }
