@@ -3,9 +3,7 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const statusBadge = $("#statusBadge");
 const btnBack = $("#btnBack");
-const dropZone = $("#dropZone");
 const fileInput = $("#fileInput");
-const sheetSelect = $("#sheetSelect");
 const searchInput = $("#searchInput");
 const dateColumnSelect = $("#dateColumnSelect");
 const timeColumnSelect = $("#timeColumnSelect");
@@ -183,6 +181,45 @@ function renderOptions(selectEl, options) {
   selectEl.innerHTML = options
     .map((o) => `<option value="${String(o)}">${String(o)}</option>`)
     .join("");
+}
+
+
+function chooseDefaultSheetFrom(names) {
+  const cand = names.find(n => n.toLowerCase().includes("fust")) || names[0];
+  return cand;
+}
+
+
+async function fetchAndLoadXlsx(url) {
+  try {
+    setStatus("Carico calendario…");
+    const bust = url + (url.includes("?") ? "&" : "?") + "_=" + Date.now();
+    const res = await fetch(bust, { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const ab = await res.arrayBuffer();
+    workbook = XLSX.read(ab, { type: "array" });
+
+    // Popola select fogli
+    sheetSelect.innerHTML = "";
+    workbook.SheetNames.forEach((name, i) => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = `${i + 1}. ${name}`;
+      sheetSelect.appendChild(opt);
+    });
+
+    const defaultSheet =
+      workbook.SheetNames.find(n => n.toLowerCase().includes("fust")) ||
+      workbook.SheetNames[0];
+
+    sheetSelect.value = defaultSheet;
+    loadSheet(defaultSheet);
+
+    setStatus("Pronto (XLSX)", "ok");
+  } catch (e) {
+    console.error(e);
+    setStatus("Errore caricamento XLSX", "err");
+  }
 }
 
 // --- Helpers date/time ---------------------------------------------------
@@ -530,6 +567,26 @@ function renderTable(_headersInput, rowsBase) {
   renderOptions(timeColumnSelect, ["— nessuna —", ...headers]);
 }
 
+
+function scheduleMidnightRefresh() {
+  if (!window.CALENDAR_XLSX_URL) return;
+  const now = new Date();
+  const next = new Date(now);
+  next.setDate(now.getDate() + 1);
+  next.setHours(0, 5, 0, 0); // 00:05
+
+  const ms = next - now;
+  setTimeout(async () => {
+    try {
+      await fetchAndLoadXlsx(window.CALENDAR_XLSX_URL);
+    } finally {
+      scheduleMidnightRefresh();
+    }
+  }, ms);
+}
+
+
+
 // Import e caricamento ----------------------------------------------------
 async function handleFile(file) {
   if (!file) return;
@@ -692,7 +749,8 @@ $("#btnBack")?.addEventListener("click", () => {
 });
 
 
-sheetSelect?.addEventListener("change", (e) => loadSheet(e.target.value));
+sheetSelect.addEventListener("change", (e) => loadSheet(e.target.value));
+
 
 // rigenera sempre partendo dagli header grezzi
 searchInput?.addEventListener("input", () => renderTable(baseHeaders, allRows));
@@ -721,22 +779,25 @@ $$(".landing [data-anno]").forEach((btn) => {
 
 // Init --------------------------------------------------------------------
 (function init() {
-  // Mostra SEMPRE la scelta anno all'avvio
-  localStorage.removeItem("cal-anno"); // opzionale ma utile: azzera lo stato salvato
+  if (window.CALENDAR_XLSX_URL) {
+    fetchAndLoadXlsx(window.CALENDAR_XLSX_URL);
+    scheduleMidnightRefresh();
+  }
+
+  localStorage.removeItem("cal-anno");
 
   const logo = document.getElementById("courseLogo");
   if (logo) {
-    logo.textContent = "ITS"; // logo iniziale
+    logo.textContent = "ITS";
     logo.classList.remove("active-logo");
   }
 
-  // Stato sezioni: solo landing visibile
   landing.classList.remove("hidden");
   courseSection.classList.add("hidden");
   appSection.classList.add("hidden");
-  btnBack.classList.add("hidden"); // all'avvio non visibile
+  btnBack.classList.add("hidden");
   yearLabel.textContent = "Scegli un anno per iniziare";
 
-  setStatus("Carica un file Excel");
+  setStatus("Carico calendario…");
   updateToggleButton();
 })();
