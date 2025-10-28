@@ -33,13 +33,23 @@ let pendingSheetName = null;
 let dayCoverage = new Map(); // key (YYYY-MM-DD) -> minuti
 let coverageDateHeader = null; // nome colonna data usato per calcolo
 
-const COURSE_TO_SHEET = {
-  front: "Frot2",
-  cyse: "Cyse2",
-  dolc: "Dolc2",
-  fust: "Fust2",
-  ago: "AgoD2",
+// Corsi per anno: key = anno ("1" | "2")
+const COURSES = {
+  "1": [
+    { key: "fust", label: "Fust", sheet: "Fust A1" },
+    { key: "cyse", label: "Cyse", sheet: "Cyse A1" },
+    { key: "arti", label: "Arti", sheet: "Arti A1" },
+    { key: "syam", label: "Syam", sheet: "Syam A1" },
+  ],
+  "2": [
+    { key: "front", label: "Front", sheet: "Frot2" },
+    { key: "cyse", label: "Cyse", sheet: "Cyse2" },
+    { key: "dolc", label: "Dolc", sheet: "Dolc2" },
+    { key: "fust", label: "Fust", sheet: "Fust2" },
+    { key: "ago",  label: "Ago",  sheet: "AgoD2"  },
+  ],
 };
+
 
 const DROP_HEADER_RE = /^(colonna|giorno|fust2)$/i;
 
@@ -327,6 +337,24 @@ function dateKeyFromVal(v) {
   return String(v);
 }
 
+function renderCourseButtons(year) {
+  const area = $("#courseButtons");
+  const list = COURSES[String(year)] || [];
+  area.innerHTML = list
+    .map(
+      c => `<button class="btn big primary" data-course="${c.key}">${c.label}</button>`
+    )
+    .join("");
+
+  // collega i click dei nuovi bottoni
+  $$("#courseButtons [data-course]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      goToCalendarWithCourse(btn.dataset.course);
+    });
+  });
+}
+
+
 // --- PRECOMPUTO copertura -----------------------------------------------
 function computeDayCoverage(headers, rows) {
   dayCoverage = new Map();
@@ -574,34 +602,37 @@ function applyYearChoice(year) {
 
   const logo = document.getElementById("courseLogo");
   if (logo) {
-    logo.textContent = "ITS"; // 👈 mostra ITS nella selezione corso
+    logo.textContent = "ITS";
     logo.classList.remove("active-logo");
   }
 
+  // mostra la pagina corsi
   landing.classList.add("hidden");
   appSection.classList.add("hidden");
   courseSection.classList.remove("hidden");
-  btnBack.classList.remove("hidden"); // mostra torna indietro quando si entra nella selezione corso
+  btnBack.classList.remove("hidden");
 
+  // costruisci i bottoni in base all'anno
+  renderCourseButtons(selectedYear);
 
-  const isYear2 = selectedYear === "2";
-  $("#courseHint").textContent = isYear2
-    ? "Scegli un corso per aprire il calendario (foglio pre-selezionato)."
-    : "Per l’Anno 1 non è disponibile il calendario: i bottoni non sono attivi.";
-  $$("#courseButtons [data-course]").forEach((btn) => {
-    btn.disabled = !isYear2;
-  });
+  // hint
+  $("#courseHint").textContent =
+    selectedYear === "1"
+      ? "Seleziona un corso dell’Anno 1 per aprire il calendario."
+      : "Seleziona un corso dell’Anno 2 per aprire il calendario.";
 }
 
+
 function goToCalendarWithCourse(courseKey) {
-  if (selectedYear !== "2") return;
-  const wanted = COURSE_TO_SHEET[courseKey];
-  pendingSheetName = wanted || null;
+  const list = COURSES[String(selectedYear)] || [];
+  const course = list.find(c => c.key === courseKey);
+  if (!course) return;
+
+  pendingSheetName = course.sheet || null;
 
   courseSection.classList.add("hidden");
   appSection.classList.remove("hidden");
-  btnBack.classList.remove("hidden"); // resta visibile anche nel calendario
-
+  btnBack.classList.remove("hidden");
 
   if (
     workbook &&
@@ -612,13 +643,14 @@ function goToCalendarWithCourse(courseKey) {
     loadSheet(pendingSheetName);
   }
 
-  // Aggiorna logo con il nome del corso
+  // logo con nome corso
   const logo = document.getElementById("courseLogo");
   if (logo) {
-    logo.textContent = courseKey.charAt(0).toUpperCase() + courseKey.slice(1);
+    logo.textContent = course.label;
     logo.classList.add("active-logo");
   }
 }
+
 
 // --- Toggle "Mostra tutto" ----------------------------------------------
 function updateToggleButton() {
@@ -675,13 +707,7 @@ $("#btnLoadTop")?.addEventListener("click", () => {
 $$(".landing [data-anno]").forEach((btn) => {
   btn.addEventListener("click", () => applyYearChoice(btn.dataset.anno));
 });
-$$("#courseButtons [data-course]").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    if (selectedYear === "2") {
-      goToCalendarWithCourse(btn.dataset.course);
-    }
-  });
-});
+
 
 // Init --------------------------------------------------------------------
 (function init() {
