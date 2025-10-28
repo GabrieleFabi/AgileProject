@@ -38,7 +38,7 @@ const COURSE_TO_SHEET = {
   cyse: "Cyse2",
   dolc: "Dolc2",
   fust: "Fust2",
-  ago: "Ago2",
+  ago: "AgoD2",
 };
 
 const DROP_HEADER_RE = /^(colonna|giorno|fust2)$/i;
