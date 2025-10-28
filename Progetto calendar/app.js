@@ -2,6 +2,7 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const statusBadge = $("#statusBadge");
+const btnBack = $("#btnBack");
 const dropZone = $("#dropZone");
 const fileInput = $("#fileInput");
 const sheetSelect = $("#sheetSelect");
@@ -411,7 +412,7 @@ function renderTable(_headersInput, rowsBase) {
     : rows.filter((row) =>
         Object.values(row).some((v) => toText(v).includes(q))
       );
-      
+
 
   // --- Header ---
   tHead.innerHTML = "";
@@ -580,6 +581,8 @@ function applyYearChoice(year) {
   landing.classList.add("hidden");
   appSection.classList.add("hidden");
   courseSection.classList.remove("hidden");
+  btnBack.classList.remove("hidden"); // mostra torna indietro quando si entra nella selezione corso
+
 
   const isYear2 = selectedYear === "2";
   $("#courseHint").textContent = isYear2
@@ -597,6 +600,8 @@ function goToCalendarWithCourse(courseKey) {
 
   courseSection.classList.add("hidden");
   appSection.classList.remove("hidden");
+  btnBack.classList.remove("hidden"); // resta visibile anche nel calendario
+
 
   if (
     workbook &&
@@ -631,6 +636,9 @@ $("#btnBack")?.addEventListener("click", () => {
   landing.classList.remove("hidden");
   appSection.classList.add("hidden");
   courseSection.classList.add("hidden");
+  btnBack.classList.add("hidden"); // nascondi quando si torna alla landing
+
+
   yearLabel.textContent = "Scegli un anno per iniziare";
   pendingSheetName = null;
 
@@ -690,6 +698,7 @@ $$("#courseButtons [data-course]").forEach((btn) => {
   landing.classList.remove("hidden");
   courseSection.classList.add("hidden");
   appSection.classList.add("hidden");
+  btnBack.classList.add("hidden"); // all'avvio non visibile
   yearLabel.textContent = "Scegli un anno per iniziare";
 
   setStatus("Carica un file Excel");
