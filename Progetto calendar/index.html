@@ -1,105 +1,141 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="it">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Calendario Scolastico – Importa Excel</title>
-  <link rel="stylesheet" href="styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-</head>
-<body>
-  <div class="wrap">
-    <header>
-      <div class="title">
-        <div class="logo" id="courseLogo" aria-hidden="true"></div>
-        <div>
-          <h1>Calendario Scolastico</h1>
-          <div class="sub"><span id="yearLabel">Scegli un anno per iniziare</span></div>
-        </div>
-      </div>
-
-      <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" style="display:none" />
-
-      <button class="btn ghost" id="btnBack" type="button">
-        ⬅️ Torna alla scelta anno
-      </button>
-      <div class="badge" id="statusBadge">Nessun file</div>
-    </header>
-
-    <!-- Pagina principale -->
-    <section id="landing" class="landing">
-      <div class="landing-card">
-        <h2>Inizia caricando il file Excel e poi scegli l'Anno</h2>
-        <div class="landing-buttons">
-          <button class="btn big" id="btnLoadTop" type="button">📄 Carica Excel adesso</button>
-          <button class="btn big ghost" id="btnClearTop" type="button">🧹 Pulisci tabella</button>
-        </div>
-        <p class="hint">Dopo il caricamento, scegli l’Anno e poi il Corso: il foglio verrà pre-selezionato automaticamente.</p>
-
-        <h2 style="margin-top:20px;">Seleziona l'Anno</h2>
-        <div class="landing-buttons">
-          <button class="btn big primary" data-anno="1">Anno 1</button>
-          <button class="btn big primary" data-anno="2">Anno 2</button>
-        </div>
-        <p class="hint">Puoi anche cambiare file in qualsiasi momento.</p>
-      </div>
-    </section>
-
-    <!-- Selezione corso -->
-    <section id="courseSection" class="landing hidden">
-      <div class="landing-card">
-        <h2>Seleziona il Corso</h2>
-        <div class="landing-buttons" id="courseButtons">
-          <button class="btn big primary" data-course="front">Front</button>
-          <button class="btn big primary" data-course="cyse">Cyse</button>
-          <button class="btn big primary" data-course="dolc">Dolc</button>
-          <button class="btn big primary" data-course="fust">Fust</button>
-          <button class="btn big primary" data-course="ago">Ago</button>
-        </div>
-        <p class="hint" id="courseHint">Scegli un anno per continuare.</p>
-      </div>
-    </section>
-
-    <!-- Calendario -->
-    <section id="appSection" class="uibox hidden">
-
-      <!-- NUOVO: riga split 50/50 -->
-      <div class="controls-split">
-        <!-- Sinistra: ricerca + bottone -->
-        <div class="card">
-          <div class="inner row-controls">
-            <div class="stack" style="flex:1 1 auto">
-              <label for="searchInput">Cerca</label>
-              <input id="searchInput" type="search" placeholder="Cerca in tabella (testo, date, orari)…" />
-            </div>
-            <button class="btn" id="btnToggleAll" type="button" title="Mostra tutto il calendario">📅 Mostra tutto</button>
-          </div>
-        </div>
-
-        <!-- Destra: legenda -->
-        <div class="card">
-          <div class="inner legend">
-            <div class="legend-title">Legenda</div>
-            <div class="legend-item">
-              <span class="legend-chip legend-chip--orange" aria-hidden="true"></span>
-              <span>Giornata evidenziata in <strong>arancione</strong>: meno di <strong>8h</strong> di lezione.</span>
-            </div>
-            <div class="legend-item">
-              <span class="legend-chip legend-chip--red" aria-hidden="true"></span>
-              <span>Giornata evidenziata in <strong>rosso chiaro</strong>: meno di <strong>4h</strong> di lezione.</span>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Calendario Scolastico – Importa Excel</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <div class="title">
+          <div class="logo" id="courseLogo" aria-hidden="true"></div>
+          <div>
+            <h1>Calendario Scolastico</h1>
+            <div class="sub">
+              <span id="yearLabel">Scegli un anno per iniziare</span>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Box nascosti per compatibilità con app.js -->
-      <div class="hidden-ui">
-        <select id="sheetSelect"></select>
-        <select id="dateColumnSelect"></select>
-        <select id="timeColumnSelect"></select>
-      </div>
+        <input
+          id="fileInput"
+          type="file"
+          accept=".xlsx,.xls,.csv"
+          style="display: none"
+        />
 
-      <div class="card">
+        <button class="btn ghost" id="btnBack" type="button">
+          ⬅️ Torna alla scelta anno
+        </button>
+        <div class="badge" id="statusBadge">Nessun file</div>
+      </header>
+
+      <!-- Pagina principale -->
+      <section id="landing" class="landing">
+        <div class="landing-card">
+          <h2>Inizia caricando il file Excel e poi scegli l'Anno</h2>
+          <div class="landing-buttons">
+            <button class="btn big" id="btnLoadTop" type="button">
+              📄 Carica Excel adesso
+            </button>
+            <button class="btn big ghost" id="btnClearTop" type="button">
+              🧹 Pulisci tabella
+            </button>
+          </div>
+          <p class="hint">
+            Dopo il caricamento, scegli l’Anno e poi il Corso: il foglio verrà
+            pre-selezionato automaticamente.
+          </p>
+
+          <h2 style="margin-top: 20px">Seleziona l'Anno</h2>
+          <div class="landing-buttons">
+            <button class="btn big primary" data-anno="1">Anno 1</button>
+            <button class="btn big primary" data-anno="2">Anno 2</button>
+          </div>
+          <p class="hint">Puoi anche cambiare file in qualsiasi momento.</p>
+        </div>
+      </section>
+
+      <!-- Selezione corso -->
+      <section id="courseSection" class="landing hidden">
+        <div class="landing-card">
+          <h2>Seleziona il Corso</h2>
+          <div class="landing-buttons" id="courseButtons">
+            <button class="btn big primary" data-course="front">Front</button>
+            <button class="btn big primary" data-course="cyse">Cyse</button>
+            <button class="btn big primary" data-course="dolc">Dolc</button>
+            <button class="btn big primary" data-course="fust">Fust</button>
+            <button class="btn big primary" data-course="ago">Ago</button>
+          </div>
+          <p class="hint" id="courseHint">Scegli un anno per continuare.</p>
+        </div>
+      </section>
+
+      <!-- Calendario -->
+      <section id="appSection" class="uibox hidden">
+        <!-- NUOVO: riga split 50/50 -->
+        <div class="controls-split">
+          <!-- Sinistra: ricerca + bottone -->
+          <div class="card">
+            <div class="inner row-controls">
+              <div class="stack" style="flex: 1 1 auto">
+                <label for="searchInput">Cerca</label>
+                <input
+                  id="searchInput"
+                  type="search"
+                  placeholder="Cerca in tabella (testo, date, orari)…"
+                />
+              </div>
+              <button
+                class="btn"
+                id="btnToggleAll"
+                type="button"
+                title="Mostra tutto il calendario"
+              >
+                📅 Mostra tutto
+              </button>
+            </div>
+          </div>
+
+          <!-- Destra: legenda -->
+          <div class="card">
+            <div class="inner legend">
+              <div class="legend-title">Legenda</div>
+              <div class="legend-item">
+                <span
+                  class="legend-chip legend-chip--orange"
+                  aria-hidden="true"
+                ></span>
+                <span
+                  >Giornata evidenziata in <strong>arancione</strong>: meno di
+                  <strong>8h</strong> di lezione.</span
+                >
+              </div>
+              <div class="legend-item">
+                <span
+                  class="legend-chip legend-chip--red"
+                  aria-hidden="true"
+                ></span>
+                <span
+                  >Giornata evidenziata in <strong>rosso chiaro</strong>: meno
+                  di <strong>4h</strong> di lezione.</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Box nascosti per compatibilità con app.js -->
+        <div class="hidden-ui">
+          <select id="sheetSelect"></select>
+          <select id="dateColumnSelect"></select>
+          <select id="timeColumnSelect"></select>
+        </div>
+
+        <div class="card">
           <div class="table-wrap">
             <table id="dataTable" aria-live="polite">
               <thead></thead>
@@ -112,10 +148,10 @@
               Suggerimento: clicca sull'intestazione per ordinare ↑↓
             </div>
           </div>
-      </div>
-    </section>
-  </div>
+        </div>
+      </section>
+    </div>
 
-  <script src="app.js" defer></script>
-</body>
+    <script src="app.js" defer></script>
+  </body>
 </html>

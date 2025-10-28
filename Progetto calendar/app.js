@@ -49,11 +49,13 @@ function isEmptyCell(v) {
   const s = String(v).trim();
   return s === "" || s === "-" || s === "—";
 }
+
 function shouldDropHeader(h, rows) {
   if (!h) return true;
   if (DROP_HEADER_RE.test(String(h).trim())) return true;
   return rows.every((r) => isEmptyCell(r[h]));
 }
+
 function setStatus(text, tone = "info") {
   statusBadge.textContent = text;
   const color =
@@ -70,6 +72,7 @@ function setStatus(text, tone = "info") {
     -20
   )})`;
 }
+
 function shade(hex, percent) {
   if (!hex.startsWith("#")) return hex;
   const num = parseInt(hex.slice(1), 16);
@@ -104,6 +107,7 @@ function excelToJson(ws) {
   });
   return { headers, rows };
 }
+
 function sanitizeHeader(h) {
   return h
     .trim()
@@ -112,6 +116,7 @@ function sanitizeHeader(h) {
     .replace(/[<>"']/g, "")
     .slice(0, 80);
 }
+
 function colName(i) {
   let s = "";
   i++;
@@ -122,9 +127,11 @@ function colName(i) {
   }
   return s;
 }
+
 function isExcelDate(v) {
   return typeof v === "number" && v > 59 && v < 60000;
 }
+
 function formatExcelDate(v) {
   try {
     const d = XLSX.SSF.parse_date_code(v);
@@ -143,10 +150,12 @@ function formatExcelDate(v) {
     return v;
   }
 }
+
 function formatCell(v) {
   if (isExcelDate(v)) return formatExcelDate(v);
   return v;
 }
+
 function renderOptions(selectEl, options) {
   selectEl.innerHTML = options
     .map((o) => `<option value="${String(o)}">${String(o)}</option>`)
@@ -169,12 +178,15 @@ function autoDetectDateHeader(headers) {
   if (chosen && headers.includes(chosen)) return chosen;
   return headers.find((h) => DATE_HEADER_RE.test(String(h))) || null;
 }
+
 function autoDetectStartHeader(headers) {
   return headers.find((h) => START_HEADER_RE.test(String(h))) || null;
 }
+
 function autoDetectEndHeader(headers) {
   return headers.find((h) => END_HEADER_RE.test(String(h))) || null;
 }
+
 function toMinutes(v) {
   if (v instanceof Date) return v.getUTCHours() * 60 + v.getUTCMinutes();
   if (typeof v === "number") {
@@ -193,6 +205,7 @@ function toMinutes(v) {
   }
   return null;
 }
+
 function mergeIntervals(intervals) {
   const arr = intervals
     .filter(
@@ -212,6 +225,7 @@ function mergeIntervals(intervals) {
   }
   return merged;
 }
+
 function coveredMinutesWithinNeeds(intervals) {
   const merged = mergeIntervals(intervals),
     needs = [
@@ -228,6 +242,7 @@ function coveredMinutesWithinNeeds(intervals) {
   }
   return total;
 }
+
 function fmtDateIT(d) {
   try {
     if (!(d instanceof Date)) return String(d);
@@ -261,12 +276,14 @@ function fmtDateIT(d) {
 function isLikelyTimeHeader(h) {
   return !!h && TIME_HEADER_RE.test(String(h).trim());
 }
+
 function fmtTimeFromFraction(fr) {
   const total = Math.round(fr * 24 * 60);
   const hh = Math.floor(total / 60);
   const mm = total % 60;
   return String(hh).padStart(2, "0") + ":" + String(mm).padStart(2, "0");
 }
+
 function fmtTimeFromDate(d) {
   return (
     String(d.getUTCHours()).padStart(2, "0") +
@@ -274,6 +291,7 @@ function fmtTimeFromDate(d) {
     String(d.getUTCMinutes()).padStart(2, "0")
   );
 }
+
 function prettyValue(v, header) {
   if (v instanceof Date) {
     if (isLikelyTimeHeader(header)) return fmtTimeFromDate(v);
@@ -284,12 +302,14 @@ function prettyValue(v, header) {
   }
   return String(v);
 }
+
 function toText(v) {
   if (v instanceof Date) {
     return v.toISOString().slice(0, 10);
   }
   return String(v).toLowerCase();
 }
+
 function escapeHtml(s) {
   return s.replace(
     /[&<>"']/g,
@@ -299,6 +319,7 @@ function escapeHtml(s) {
       ])
   );
 }
+
 function dateKeyFromVal(v) {
   const d = v instanceof Date ? v : typeof v === "string" ? new Date(v) : null;
   if (d && !isNaN(d)) return d.toISOString().slice(0, 10);
@@ -390,9 +411,7 @@ function renderTable(_headersInput, rowsBase) {
     : rows.filter((row) =>
         Object.values(row).some((v) => toText(v).includes(q))
       );
-
-  // ⛔️ NIENTE ORDINAMENTO: rimosso il sort
-  // (non usiamo più sortState né sortIcon)
+      
 
   // --- Header ---
   tHead.innerHTML = "";
@@ -659,11 +678,11 @@ $$("#courseButtons [data-course]").forEach((btn) => {
 // Init --------------------------------------------------------------------
 (function init() {
   // Mostra SEMPRE la scelta anno all'avvio
-  localStorage.removeItem("cal-anno");     // opzionale ma utile: azzera lo stato salvato
+  localStorage.removeItem("cal-anno"); // opzionale ma utile: azzera lo stato salvato
 
   const logo = document.getElementById("courseLogo");
   if (logo) {
-    logo.textContent = "ITS";              // logo iniziale
+    logo.textContent = "ITS"; // logo iniziale
     logo.classList.remove("active-logo");
   }
 
