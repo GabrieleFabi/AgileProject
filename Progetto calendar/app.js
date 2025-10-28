@@ -622,7 +622,6 @@ function applyYearChoice(year) {
   landing.classList.add("hidden");
   appSection.classList.add("hidden");
   courseSection.classList.remove("hidden");
-  btnBack.classList.remove("hidden");
 
   // costruisci i bottoni in base all'anno
   renderCourseButtons(selectedYear);
@@ -675,24 +674,23 @@ function updateToggleButton() {
 // Eventi UI ---------------------------------------------------------------
 fileInput?.addEventListener("change", (e) => handleFile(e.target.files[0]));
 $("#btnBack")?.addEventListener("click", () => {
-  localStorage.removeItem("cal-anno");
-
-  landing.classList.remove("hidden");
+  // torna al menu corsi
   appSection.classList.add("hidden");
-  courseSection.classList.add("hidden");
-  btnBack.classList.add("hidden"); // nascondi quando si torna alla landing
+  courseSection.classList.remove("hidden");
+  btnBack.classList.add("hidden"); // nascondi perché è la prima pagina visibile ora
 
-
-  yearLabel.textContent = "Scegli un anno per iniziare";
   pendingSheetName = null;
 
-  // 👇 resetta anche il logo
+  // ripristina il logo
   const logo = document.getElementById("courseLogo");
   if (logo) {
     logo.textContent = "ITS";
     logo.classList.remove("active-logo");
   }
+
+  yearLabel.textContent = `Anno ${selectedYear}`;
 });
+
 
 sheetSelect?.addEventListener("change", (e) => loadSheet(e.target.value));
 
