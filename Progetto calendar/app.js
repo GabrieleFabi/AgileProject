@@ -11,7 +11,6 @@ const table = $("#dataTable");
 const tHead = table.tHead || table.createTHead();
 const tBody = table.tBodies[0] || table.createTBody();
 const rowsCount = $("#rowsCount");
-const sortHint = $("#sortHint");
 const landing = $("#landing");
 const appSection = $("#appSection");
 const yearLabel = $("#yearLabel");
@@ -569,11 +568,6 @@ function renderTable(_headersInput, rowsBase) {
   });
   tHead.appendChild(trh);
 
-
-
-
-  // Nascondi l'hint di ordinamento
-  sortHint?.classList.add("hidden");
 
   // --- Body ---
   tBody.innerHTML = "";
