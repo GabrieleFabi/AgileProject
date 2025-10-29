@@ -33,7 +33,7 @@
         <div class="badge" id="statusBadge">Nessun file</div>
       </header>
 
-      <!-- Pagina principale -->
+      <!-- Landing -->
       <section id="landing" class="landing">
         <div class="landing-card">
           <h2>Inizia caricando il file Excel e poi scegli l'Anno</h2>
@@ -70,9 +70,7 @@
 
       <!-- Calendario -->
       <section id="appSection" class="uibox hidden">
-        <!-- NUOVO: riga split 50/50 -->
         <div class="controls-split">
-          <!-- Sinistra: ricerca + bottone -->
           <div class="card" id="searchBar">
             <div class="card-title" id="searchTitle">Cerca</div>
             <div class="inner row-controls">
@@ -95,7 +93,6 @@
             </div>
           </div>
 
-          <!-- Destra: legenda -->
           <div class="card">
             <div class="inner legend">
               <div class="legend-title">Legenda</div>
@@ -133,7 +130,7 @@
           </div>
         </div>
 
-        <!-- Box nascosti per compatibilità con app.js -->
+        <!-- UI nascoste richieste da app.js -->
         <div class="hidden-ui">
           <select id="sheetSelect"></select>
           <select id="dateColumnSelect"></select>

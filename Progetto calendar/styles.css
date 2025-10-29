@@ -1,15 +1,14 @@
 :root {
-  /* Palette chiara (bianco scuro/grigio) */
-  --bg: #f2f3f5; /* sfondo pagina */
-  --surface: #ffffff; /* card, input, bottoni */
-  --surface-2: #f7f8fa; /* hover/seconda superficie */
-  --txt: #1f2937; /* testo principale (grigio molto scuro) */
-  --muted: #6b7280; /* testo secondario */
-  --brand: #3b82f6; /* accento blu */
-  --accent: #10b981; /* accento verde (ok) */
-  --danger: #ef4444; /* rosso stato critico */
-  --border: #e5e7eb; /* bordi tenui */
-  --shadow: 0 8px 20px rgba(17, 24, 39, 0.06); /* ombra soft */
+  --bg: #f2f3f5;
+  --surface: #fff;
+  --surface-2: #f7f8fa;
+  --txt: #1f2937;
+  --muted: #6b7280;
+  --brand: #3b82f6;
+  --accent: #10b981;
+  --danger: #ef4444;
+  --border: #e5e7eb;
+  --shadow: 0 8px 20px rgba(17, 24, 39, 0.06);
 }
 
 /* Base */
@@ -26,7 +25,7 @@ body {
     "Noto Sans", "Helvetica Neue", sans-serif;
   background: radial-gradient(
       1200px 600px at 10% -10%,
-      #ffffff 0%,
+      #fff 0%,
       transparent 60%
     ),
     radial-gradient(1000px 500px at 100% 0%, #fbfbfc 0%, transparent 70%),
@@ -85,7 +84,7 @@ h1 {
   font-size: 14px;
 }
 
-/* Sezioni */
+/* Layout sezioni */
 .uibox {
   display: grid;
   grid-template-columns: 1fr;
@@ -109,7 +108,7 @@ h1 {
   padding: 16px;
 }
 
-/* Titolo centrato nelle card (Cerca / Legenda) */
+/* Titolo centrato (Cerca / Legenda) */
 .card-title {
   width: 100%;
   text-align: center;
@@ -120,23 +119,21 @@ h1 {
   letter-spacing: 0.3px;
 }
 
+/* Barra di ricerca (centrata) */
 #searchBar {
   justify-content: center;
 }
-
-/* Solo la card "Cerca": allinea verticalmente e orizzontalmente */
 #searchBar .inner.row-controls {
-  align-items: center !important; /* centro verticale sugli elementi reali: input+button */
-  justify-content: center; /* centro orizzontale */
+  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: 12px;
 }
-
-/* Evita che il wrapper dell'input si allarghi e spinga il bottone */
 #searchBar .row-controls .stack {
   flex: 0 0 auto;
 }
 
-/* Controlli */
+/* Controlli generali */
 .row-controls {
   display: flex;
   align-items: end;
@@ -144,13 +141,7 @@ h1 {
   justify-content: space-between;
 }
 
-/* Centra verticalmente i controlli solo nella card "Cerca" */
-#searchBar .inner.row-controls {
-  align-items: center !important; /* centra verticalmente */
-  justify-content: center; /* resta centrato anche orizzontalmente */
-}
-
-/* Barra controlli + legenda */
+/* Split Cerca/Legenda */
 .controls-split {
   display: flex;
   flex-direction: column;
@@ -181,7 +172,7 @@ h1 {
 .btn.primary {
   background: linear-gradient(180deg, #60a5fa, #3b82f6);
   border-color: #3775d6;
-  color: #ffffff;
+  color: #fff;
 }
 .btn.ghost {
   background: transparent;
@@ -233,20 +224,10 @@ h1 {
   margin-top: 8px;
 }
 
-/* Form */
-.grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
-}
+/* Form minimi */
 .stack {
   display: grid;
   gap: 10px;
-}
-label {
-  font-weight: 600;
-  letter-spacing: 0.2px;
-  color: var(--muted);
 }
 select,
 input[type="search"] {
@@ -262,8 +243,8 @@ input[type="search"] {
 .table-wrap {
   width: 100%;
   flex: 1;
-  padding: 16px; /* padding attorno */
-  border-radius: 18px; /* mantiene gli angoli */
+  padding: 16px;
+  border-radius: 18px;
   background: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0.9),
@@ -272,9 +253,8 @@ input[type="search"] {
   box-sizing: border-box;
   overflow: auto;
 }
-
 table {
-  width: 100%; /* riempie tutta la card */
+  width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   min-width: 0;
@@ -299,8 +279,6 @@ tbody tr:hover {
 tbody tr:nth-child(even) {
   background: rgba(0, 0, 0, 0.015);
 }
-
-/* Hover anche sulle righe pari (grigie) */
 tbody tr:nth-child(even):hover {
   background: rgba(59, 130, 246, 0.06);
 }
@@ -346,7 +324,6 @@ tbody tr.day-short:hover {
     rgba(249, 115, 22, 0.2)
   );
 }
-/* <4h: evidenziazione rosso chiaro */
 tbody tr.day-very-short {
   background: linear-gradient(
     180deg,
@@ -381,8 +358,6 @@ tbody tr.day-very-short:hover {
   font-size: 14px;
   line-height: 1.3;
 }
-
-/* Base chip con variabili */
 .legend-chip {
   --chip-bg1: rgba(251, 191, 36, 0.35);
   --chip-bg2: rgba(249, 115, 22, 0.22);
@@ -395,41 +370,36 @@ tbody tr.day-very-short:hover {
   background: linear-gradient(180deg, var(--chip-bg1), var(--chip-bg2));
   box-shadow: inset 0 1px 0 var(--chip-shadow);
 }
-/* Variante arancione (<8h) */
 .legend-chip--orange {
   --chip-bg1: rgba(251, 191, 36, 0.35);
   --chip-bg2: rgba(249, 115, 22, 0.22);
   --chip-border: rgba(249, 115, 22, 0.4);
   --chip-shadow: rgba(251, 191, 36, 0.25);
 }
-/* Variante rossa chiara (<4h) */
 .legend-chip--red {
   --chip-bg1: rgba(244, 63, 94, 0.55);
   --chip-bg2: rgba(239, 68, 68, 0.4);
   --chip-border: rgba(239, 68, 68, 0.6);
   --chip-shadow: rgba(239, 68, 68, 0.45);
 }
-.legend-date-red {
-  color: var(--danger);
-  font-weight: 600;
-}
-
-/* Variante verde (Esame / penultima lezione) */
 .legend-chip--green {
   --chip-bg1: rgba(16, 185, 129, 0.35);
   --chip-bg2: rgba(16, 185, 129, 0.22);
   --chip-border: rgba(16, 185, 129, 0.45);
   --chip-shadow: rgba(16, 185, 129, 0.28);
 }
+.legend-date-red {
+  color: var(--danger);
+  font-weight: 600;
+}
 
-/* Separatore cambio data: bordo nero sempre visibile */
+/* Separatore di giorno: bordo nero fisso */
 tbody tr.date-sep td {
-  border-top: 2px solid #000 !important; /* sempre nero */
+  border-top: 2px solid #000 !important;
   padding-top: 18px;
   position: relative;
   z-index: 2;
 }
-/* Evita che colori o ombre delle righe evidenziate alterino il bordo */
 tbody tr.date-sep.day-short,
 tbody tr.date-sep.day-very-short {
   box-shadow: none !important;
@@ -445,12 +415,12 @@ tbody tr.date-sep.day-very-short {
   color: var(--txt);
 }
 
-/* UI nascosti per compatibilità JS */
+/* UI nascoste per JS */
 .hidden-ui {
   display: none !important;
 }
 
-/* Forza il ritorno a capo nella colonna data (compatibile con layout attuale) */
+/* Colonna Data a capo/centrata */
 th:nth-child(1),
 td:nth-child(1) {
   white-space: pre-line !important;
@@ -459,11 +429,7 @@ td:nth-child(1) {
   line-height: 1.2;
 }
 
-/* =========================
-   Breakpoints
-   ========================= */
-
-/* Desktop / tablet largo */
+/* Breakpoints */
 @media (min-width: 860px) {
   .controls-split {
     flex-direction: row;
@@ -477,13 +443,10 @@ td:nth-child(1) {
   }
 }
 
-/* Mobile generale */
 @media (max-width: 860px) {
   .wrap {
     padding: 0 12px;
   }
-
-  /* Header centrato */
   header {
     flex-direction: column;
     align-items: center;
@@ -491,14 +454,11 @@ td:nth-child(1) {
     gap: 12px;
   }
   .title {
-    display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     text-align: center;
   }
-
-  /* Pulsante e badge centrati */
   #btnBack,
   .badge {
     width: auto;
@@ -509,7 +469,6 @@ td:nth-child(1) {
     border-radius: 12px;
   }
 
-  /* Controlli */
   .controls-split {
     flex-direction: column;
   }
@@ -524,13 +483,7 @@ td:nth-child(1) {
   .card .inner {
     padding: 14px;
   }
-  label {
-    font-weight: 600;
-    letter-spacing: 0.2px;
-    color: var(--muted);
-  }
 
-  /* Tabella compatta */
   .table-wrap {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -551,7 +504,7 @@ td:nth-child(1) {
     white-space: normal;
   }
 
-  /* 4ª colonna = "Modulo": può andare a capo liberamente */
+  /* Colonna 4 (es. Modulo) libera di andare a capo */
   th:nth-child(4),
   td:nth-child(4) {
     white-space: normal;
@@ -560,16 +513,15 @@ td:nth-child(1) {
   }
 
   #searchBar .inner.row-controls {
-    flex-direction: column; /* va in colonna */
-    align-items: stretch; /* estende ogni figlio in larghezza */
+    flex-direction: column;
+    align-items: stretch;
     gap: 10px;
     width: 100%;
   }
-
   #searchBar .row-controls .stack,
   #searchBar input[type="search"],
   #searchBar .btn {
-    width: 100%; /* ogni elemento riempie tutta la card */
+    width: 100%;
   }
 }
 
@@ -577,9 +529,8 @@ td:nth-child(1) {
   padding: 8px;
 }
 
-/* Mobile compatto: colonne Data e Orario */
 @media (max-width: 520px) {
-  /* Colonna Orario (2ª): 09:00 \n - \n 13:00 */
+  /* Orario su tre righe */
   th:nth-child(2),
   td:nth-child(2) {
     white-space: pre-line;
@@ -588,7 +539,7 @@ td:nth-child(1) {
     font-variant-numeric: tabular-nums;
     line-height: 1.1;
   }
-  /* Colonna Data (1ª): solo quanto il testo */
+  /* Data stretta */
   th:nth-child(1),
   td:nth-child(1) {
     text-align: center;
@@ -598,24 +549,7 @@ td:nth-child(1) {
   }
 }
 
-/* Schermi molto stretti */
-@media (max-width: 420px) {
-  h1 {
-    font-size: 22px;
-  }
-  .badge {
-    font-size: 12px;
-  }
-  .btn.big {
-    font-size: 16px;
-    padding: 16px 22px;
-  }
-  .legend-item {
-    font-size: 13px;
-  }
-}
-
-/* Penultima lezione del modulo (esame): evidenza verde */
+/* Penultima lezione (Esame) */
 tbody tr.row-penultimate {
   background: linear-gradient(
     180deg,
