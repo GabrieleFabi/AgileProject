@@ -116,7 +116,6 @@ h1 {
   font-weight: 600;
   color: var(--muted);
   padding: 12px 0 4px;
-  border-bottom: 1px solid var(--border);
   font-size: 15px;
   letter-spacing: 0.3px;
 }
@@ -125,12 +124,30 @@ h1 {
   justify-content: center;
 }
 
+/* Solo la card "Cerca": allinea verticalmente e orizzontalmente */
+#searchBar .inner.row-controls {
+  align-items: center !important;  /* centro verticale sugli elementi reali: input+button */
+  justify-content: center;         /* centro orizzontale */
+  gap: 12px;
+}
+
+/* Evita che il wrapper dell'input si allarghi e spinga il bottone */
+#searchBar .row-controls .stack {
+  flex: 0 0 auto;
+}
+
 /* Controlli */
 .row-controls {
   display: flex;
   align-items: end;
   gap: 12px;
   justify-content: space-between;
+}
+
+/* Centra verticalmente i controlli solo nella card "Cerca" */
+#searchBar .inner.row-controls {
+  align-items: center !important;   /* centra verticalmente */
+  justify-content: center;          /* resta centrato anche orizzontalmente */
 }
 
 /* Barra controlli + legenda */
@@ -350,6 +367,7 @@ tbody tr.day-very-short:hover {
 }
 .legend-title {
   font-weight: 600;
+  text-align: center;
   letter-spacing: 0.2px;
   color: var(--muted);
 }
@@ -536,6 +554,19 @@ td:nth-child(1) {
     white-space: normal;
     word-break: normal;
     overflow-wrap: break-word;
+  }
+
+  #searchBar .inner.row-controls {
+    flex-direction: column;   /* va in colonna */
+    align-items: stretch;     /* estende ogni figlio in larghezza */
+    gap: 10px;
+    width: 100%;
+  }
+
+  #searchBar .row-controls .stack,
+  #searchBar input[type="search"],
+  #searchBar .btn {
+    width: 100%;              /* ogni elemento riempie tutta la card */
   }
 }
 

@@ -72,15 +72,16 @@
       <!-- Calendario -->
       <section id="appSection" class="uibox hidden">
         <!-- NUOVO: riga split 50/50 -->
-        <div class="controls-split">
+        <div class="controls-split" >
           <!-- Sinistra: ricerca + bottone -->
-          <div class="card">
+          <div class="card" id="searchBar">
+            <div class="card-title" id="searchTitle">Cerca</div>
             <div class="inner row-controls">
-              <div class="stack" style="flex: 1 1 auto">
-                <label for="searchInput">Cerca</label>
+              <div class="stack">
                 <input
                   id="searchInput"
                   type="search"
+                  aria-labelledby="searchTitle"
                   placeholder="Cerca in tabella (testo, date, orari)…"
                 />
               </div>
@@ -94,6 +95,7 @@
               </button>
             </div>
           </div>
+
 
           <!-- Destra: legenda -->
           <div class="card">
