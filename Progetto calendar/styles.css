@@ -280,6 +280,11 @@ tbody tr:nth-child(even) {
   background: rgba(0, 0, 0, 0.015);
 }
 
+/* Hover anche sulle righe pari (grigie) */
+tbody tr:nth-child(even):hover {
+  background: rgba(59, 130, 246, 0.06);
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
