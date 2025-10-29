@@ -30,27 +30,25 @@ let pendingSheetName = null;
 let dayCoverage = new Map(); // key (YYYY-MM-DD) -> minuti
 let coverageDateHeader = null; // nome colonna data usato per calcolo
 // Penultima-lezione (esame) -----------------------------------------------
-let penultimateKeys = new Set();     // Set di chiavi riga da evidenziare
-let moduleHeaderName = null;         // nome colonna modulo/UF rilevato
-
+let penultimateKeys = new Set(); // Set di chiavi riga da evidenziare
+let moduleHeaderName = null; // nome colonna modulo/UF rilevato
 
 // Corsi per anno: key = anno ("1" | "2")
 const COURSES = {
-  "1": [
+  1: [
     { key: "fust", label: "Fust", sheet: "Fust A1" },
     { key: "cyse", label: "Cyse", sheet: "Cyse A1" },
     { key: "arti", label: "Arti", sheet: "Arti A1" },
     { key: "syam", label: "Syam", sheet: "Syam A1" },
   ],
-  "2": [
+  2: [
     { key: "front", label: "Front", sheet: "Frot2" },
     { key: "cyse", label: "Cyse", sheet: "Cyse2" },
     { key: "dolc", label: "Dolc", sheet: "Dolc2" },
     { key: "fust", label: "Fust", sheet: "Fust2" },
-    { key: "ago",  label: "Ago",  sheet: "AgoD2"  },
+    { key: "ago", label: "Ago", sheet: "AgoD2" },
   ],
 };
-
 
 const DROP_HEADER_RE = /^(colonna|giorno|fust2)$/i;
 
@@ -64,7 +62,6 @@ window.addEventListener("DOMContentLoaded", () => {
     applyYearChoice(forcedYear);
   }
 });
-
 
 function isEmptyCell(v) {
   if (v === null || v === undefined) return true;
@@ -187,12 +184,6 @@ function renderOptions(selectEl, options) {
 }
 
 
-function chooseDefaultSheetFrom(names) {
-  const cand = names.find(n => n.toLowerCase().includes("fust")) || names[0];
-  return cand;
-}
-
-
 async function fetchAndLoadXlsx(url) {
   try {
     setStatus("Carico calendario…");
@@ -212,7 +203,7 @@ async function fetchAndLoadXlsx(url) {
     });
 
     const defaultSheet =
-      workbook.SheetNames.find(n => n.toLowerCase().includes("fust")) ||
+      workbook.SheetNames.find((n) => n.toLowerCase().includes("fust")) ||
       workbook.SheetNames[0];
 
     sheetSelect.value = defaultSheet;
@@ -373,15 +364,6 @@ function toText(v) {
   return String(v).toLowerCase();
 }
 
-function escapeHtml(s) {
-  return s.replace(
-    /[&<>"']/g,
-    (m) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[
-        m
-      ])
-  );
-}
 
 function dateKeyFromVal(v) {
   const d = v instanceof Date ? v : typeof v === "string" ? new Date(v) : null;
@@ -394,7 +376,8 @@ function renderCourseButtons(year) {
   const list = COURSES[String(year)] || [];
   area.innerHTML = list
     .map(
-      c => `<button class="btn big primary" data-course="${c.key}">${c.label}</button>`
+      (c) =>
+        `<button class="btn big primary" data-course="${c.key}">${c.label}</button>`
     )
     .join("");
 
@@ -407,9 +390,10 @@ function renderCourseButtons(year) {
 }
 
 // Rileva la colonna "Modulo/UF"
-const MODULE_HEADER_RE = /^(modulo|uf|unit[aà] ?formativa|materia|insegnamento|argomento)$/i;
+const MODULE_HEADER_RE =
+  /^(modulo|uf|unit[aà] ?formativa|materia|insegnamento|argomento)$/i;
 function autoDetectModuleHeader(headers) {
-  return headers.find(h => MODULE_HEADER_RE.test(String(h).trim())) || null;
+  return headers.find((h) => MODULE_HEADER_RE.test(String(h).trim())) || null;
 }
 
 // Chiave univoca per una lezione (per modulo + data + ora-inizio se c'è)
@@ -417,7 +401,7 @@ function keyForRowPenultimate(row, dateH, startH, moduleH) {
   const mod = row[moduleH] ?? "";
   const dateKey = dateKeyFromVal(row[dateH]) ?? "";
   const startMin = toMinutes(row[startH]);
-  const t = (startMin != null) ? String(startMin) : "";
+  const t = startMin != null ? String(startMin) : "";
   return `${mod}__${dateKey}__${t}`;
 }
 
@@ -426,7 +410,7 @@ function computePenultimateKeys(headers, rows) {
   penultimateKeys = new Set();
   moduleHeaderName = autoDetectModuleHeader(headers);
 
-  const dateH  = autoDetectDateHeader(headers);
+  const dateH = autoDetectDateHeader(headers);
   const startH = autoDetectStartHeader(headers);
 
   if (!moduleHeaderName || !dateH) return;
@@ -437,7 +421,7 @@ function computePenultimateKeys(headers, rows) {
     const mod = String(r[moduleHeaderName] ?? "").trim();
     if (!mod) continue;
     const dVal = r[dateH];
-    const d = (dVal instanceof Date) ? dVal : new Date(dVal);
+    const d = dVal instanceof Date ? dVal : new Date(dVal);
     if (isNaN(d)) continue;
 
     const sMin = startH ? toMinutes(r[startH]) : null;
@@ -451,8 +435,8 @@ function computePenultimateKeys(headers, rows) {
       // ordine per data, poi ora-inizio (se presente)
       const cmpD = a.d - b.d;
       if (cmpD !== 0) return cmpD;
-      const aa = (a.sMin ?? -1);
-      const bb = (b.sMin ?? -1);
+      const aa = a.sMin ?? -1;
+      const bb = b.sMin ?? -1;
       return aa - bb;
     });
     if (arr.length >= 2) {
@@ -467,8 +451,6 @@ function computePenultimateKeys(headers, rows) {
     }
   }
 }
-
-
 
 // --- PRECOMPUTO copertura -----------------------------------------------
 function computeDayCoverage(headers, rows) {
@@ -556,7 +538,6 @@ function renderTable(_headersInput, rowsBase) {
         Object.values(row).some((v) => toText(v).includes(q))
       );
 
-
   // --- Header ---
   tHead.innerHTML = "";
   const trh = document.createElement("tr");
@@ -567,7 +548,6 @@ function renderTable(_headersInput, rowsBase) {
     trh.appendChild(th);
   });
   tHead.appendChild(trh);
-
 
   // --- Body ---
   tBody.innerHTML = "";
@@ -581,7 +561,7 @@ function renderTable(_headersInput, rowsBase) {
     });
     // Evidenzia "penultima lezione" (esame) in verde
     {
-      const dateH  = autoDetectDateHeader(baseHeaders);
+      const dateH = autoDetectDateHeader(baseHeaders);
       const startH = autoDetectStartHeader(baseHeaders);
       if (moduleHeaderName && dateH) {
         const k = keyForRowPenultimate(row, dateH, startH, moduleHeaderName);
@@ -642,7 +622,6 @@ function renderTable(_headersInput, rowsBase) {
   renderOptions(timeColumnSelect, ["— nessuna —", ...headers]);
 }
 
-
 function scheduleMidnightRefresh() {
   if (!window.CALENDAR_XLSX_URL) return;
   const now = new Date();
@@ -659,8 +638,6 @@ function scheduleMidnightRefresh() {
     }
   }, ms);
 }
-
-
 
 // Import e caricamento ----------------------------------------------------
 async function handleFile(file) {
@@ -766,10 +743,9 @@ function applyYearChoice(year) {
       : "Seleziona un corso dell’Anno 2 per aprire il calendario.";
 }
 
-
 function goToCalendarWithCourse(courseKey) {
   const list = COURSES[String(selectedYear)] || [];
-  const course = list.find(c => c.key === courseKey);
+  const course = list.find((c) => c.key === courseKey);
   if (!course) return;
 
   pendingSheetName = course.sheet || null;
@@ -794,7 +770,6 @@ function goToCalendarWithCourse(courseKey) {
     logo.classList.add("active-logo");
   }
 }
-
 
 // --- Toggle "Mostra tutto" ----------------------------------------------
 function updateToggleButton() {
@@ -824,9 +799,7 @@ $("#btnBack")?.addEventListener("click", () => {
   yearLabel.textContent = `Anno ${selectedYear}`;
 });
 
-
 sheetSelect.addEventListener("change", (e) => loadSheet(e.target.value));
-
 
 // rigenera sempre partendo dagli header grezzi
 searchInput?.addEventListener("input", () => renderTable(baseHeaders, allRows));
@@ -852,7 +825,6 @@ $$(".landing [data-anno]").forEach((btn) => {
   btn.addEventListener("click", () => applyYearChoice(btn.dataset.anno));
 });
 
-
 // Init --------------------------------------------------------------------
 (function init() {
   if (window.CALENDAR_XLSX_URL) {
@@ -871,7 +843,7 @@ $$(".landing [data-anno]").forEach((btn) => {
   landing.classList.remove("hidden");
   courseSection.classList.add("hidden");
   appSection.classList.add("hidden");
-  btnBack.classList.add("hidden");
+  btnBack.classList.add("hidden");  
   yearLabel.textContent = "Scegli un anno per iniziare";
 
   setStatus("Carico calendario…");

@@ -126,8 +126,8 @@ h1 {
 
 /* Solo la card "Cerca": allinea verticalmente e orizzontalmente */
 #searchBar .inner.row-controls {
-  align-items: center !important;  /* centro verticale sugli elementi reali: input+button */
-  justify-content: center;         /* centro orizzontale */
+  align-items: center !important; /* centro verticale sugli elementi reali: input+button */
+  justify-content: center; /* centro orizzontale */
   gap: 12px;
 }
 
@@ -146,8 +146,8 @@ h1 {
 
 /* Centra verticalmente i controlli solo nella card "Cerca" */
 #searchBar .inner.row-controls {
-  align-items: center !important;   /* centra verticalmente */
-  justify-content: center;          /* resta centrato anche orizzontalmente */
+  align-items: center !important; /* centra verticalmente */
+  justify-content: center; /* resta centrato anche orizzontalmente */
 }
 
 /* Barra controlli + legenda */
@@ -245,8 +245,8 @@ h1 {
 }
 label {
   font-weight: 600;
-    letter-spacing: 0.2px;
-    color: var(--muted);
+  letter-spacing: 0.2px;
+  color: var(--muted);
 }
 select,
 input[type="search"] {
@@ -262,8 +262,8 @@ input[type="search"] {
 .table-wrap {
   width: 100%;
   flex: 1;
-  padding: 16px;                /* padding attorno */
-  border-radius: 18px;          /* mantiene gli angoli */
+  padding: 16px; /* padding attorno */
+  border-radius: 18px; /* mantiene gli angoli */
   background: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0.9),
@@ -274,7 +274,7 @@ input[type="search"] {
 }
 
 table {
-  width: 100%;                  /* riempie tutta la card */
+  width: 100%; /* riempie tutta la card */
   border-collapse: separate;
   border-spacing: 0;
   min-width: 0;
@@ -560,8 +560,8 @@ td:nth-child(1) {
   }
 
   #searchBar .inner.row-controls {
-    flex-direction: column;   /* va in colonna */
-    align-items: stretch;     /* estende ogni figlio in larghezza */
+    flex-direction: column; /* va in colonna */
+    align-items: stretch; /* estende ogni figlio in larghezza */
     gap: 10px;
     width: 100%;
   }
@@ -569,7 +569,7 @@ td:nth-child(1) {
   #searchBar .row-controls .stack,
   #searchBar input[type="search"],
   #searchBar .btn {
-    width: 100%;              /* ogni elemento riempie tutta la card */
+    width: 100%; /* ogni elemento riempie tutta la card */
   }
 }
 
@@ -614,7 +614,6 @@ td:nth-child(1) {
     font-size: 13px;
   }
 }
-
 
 /* Penultima lezione del modulo (esame): evidenza verde */
 tbody tr.row-penultimate {
