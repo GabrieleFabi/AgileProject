@@ -176,4 +176,4 @@ Ogni notte lo script:
 - Nella pagina ufficiale ITS si inserisce un *iframe*:  
 
 ```html
-<iframe src="https://its-calendar.netlify.app/" width="100%" height="900"></iframe>
+<iframe src="https://its-calendar-2025-2027.netlify.app" width="100%" height="900"></iframe>
