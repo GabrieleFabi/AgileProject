@@ -260,21 +260,24 @@ input[type="search"] {
 
 /* Tabella */
 .table-wrap {
-  overflow: auto;
-  border: none;
-  border-radius: 10px;
-  padding: 8px;
+  width: 100%;
+  flex: 1;
+  padding: 16px;                /* padding attorno */
+  border-radius: 18px;          /* mantiene gli angoli */
   background: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0.9),
     rgba(255, 255, 255, 0.85)
   );
+  box-sizing: border-box;
+  overflow: auto;
 }
+
 table {
-  width: 100%;
+  width: 100%;                  /* riempie tutta la card */
   border-collapse: separate;
   border-spacing: 0;
-  min-width: 720px;
+  min-width: 0;
 }
 thead th {
   position: sticky;
