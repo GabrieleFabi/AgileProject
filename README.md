@@ -3,7 +3,7 @@
 ## 🧭 Panoramica generale
 
 **Nome progetto:** ITS Calendario Studs 2025  
-**Obiettivo:** Fornire un sistema interattivo per la visualizzazione dei calendari delle lezioni degli studenti ITS, generato dinamicamente da un file Excel aggiornato automaticamente ogni 12 ore.  
+**Obiettivo:** Fornire un sistema interattivo per la visualizzazione dei calendari delle lezioni degli studenti ITS, generato dinamicamente da un file Excel aggiornato giornalmente e automaticamente tra mezzanotte e l'una.
 **Utenti finali:** Studenti, docenti e personale amministrativo dell’istituto.  
 
 **Hosting:**
