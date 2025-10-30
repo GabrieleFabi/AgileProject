@@ -144,6 +144,19 @@ function fmtTimeFromFraction(fr) {
 function fmtTimeFromDate(d) {
   return String(d.getUTCHours()).padStart(2, "0") + ":" + String(d.getUTCMinutes()).padStart(2, "0");
 }
+
+function parseTimeValue(v) {
+  // Date -> minuti UTC
+  if (v instanceof Date) return v.getUTCHours() * 60 + v.getUTCMinutes();
+  // Numero frazionario Excel (0..1) -> minuti
+  if (typeof v === "number" && v >= 0 && v < 1) return Math.round(v * 24 * 60);
+  // Stringa tipo "09:00" o "09:00\n-\n13:00"
+  const s = String(v || "").trim();
+  const m = s.match(/(\d{1,2}):(\d{2})/);
+  if (m) return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+  return 0; // fallback: trattala come 00:00
+}
+
 function prettyValue(v, header) {
   if (v instanceof Date) {
     if (isLikelyTimeHeader(header)) return fmtTimeFromDate(v);
@@ -212,6 +225,27 @@ function normalizeCourseName(name) {
   // "Fust A1" -> "Fust1" (spazio opzionale, case-insensitive)
   return String(name || "").replace(/\s*A1\b/i, "1");
 }
+
+function compareByDateAndStart(a, b, dateH, startH) {
+  const da = rowDate(a, dateH);
+  const db = rowDate(b, dateH);
+
+  // Prima: confronto della data (null va in fondo)
+  if (da && db) {
+    const diff = da.getTime() - db.getTime();
+    if (diff !== 0) return diff;
+  } else if (da) return -1;
+  else if (db) return 1;
+
+  // Poi: confronto dell'ora di inizio (se c'è una colonna riconoscibile)
+  if (startH) {
+    const ta = parseTimeValue(a[startH]);  // vedi patch #2
+    const tb = parseTimeValue(b[startH]);
+    return ta - tb;
+  }
+  return 0;
+}
+
 // --- Caricamento da file locale -----------------------------------------
 async function handleFile(file) {
   try {
@@ -281,6 +315,43 @@ function processWorkbook() {
   // Pulizia colonne in base alle regole richieste (Corso è già valorizzato)
   const cleaned = dropUnwantedColumns(headersForRender || [], collected);
 
+  const dateH = autoDetectDateHeader(cleaned.headers);
+  const startH = autoDetectStartHeader(cleaned.headers);
+  if (dateH) cleaned.rows.sort((a, b) => compareByDateAndStart(a, b, dateH, startH));
+
+
+if (dateH) {
+  cleaned.rows.sort((a, b) => {
+    const da = rowDate(a, dateH);
+    const db = rowDate(b, dateH);
+
+    // confronto data
+    if (da && db) {
+      if (da.getTime() !== db.getTime()) return da - db;
+    } else if (da) return -1;
+    else if (db) return 1;
+
+    // confronto ora inizio se disponibile
+    if (startH) {
+      const va = a[startH];
+      const vb = b[startH];
+      const parseTime = (v) => {
+        if (v instanceof Date) return v.getUTCHours() * 60 + v.getUTCMinutes();
+        const s = String(v || "").trim();
+        const m = s.match(/(\\d{1,2}):(\\d{2})/);
+        if (m) return parseInt(m[1],10) * 60 + parseInt(m[2],10);
+        return 0;
+      };
+      const ta = parseTime(va);
+      const tb = parseTime(vb);
+      return ta - tb;
+    }
+
+    return 0;
+  });
+}
+
+
   headersRef = cleaned.headers;
   allRows = cleaned.rows;
   rowsTeacher = applyFilters();
@@ -299,16 +370,24 @@ function startOfToday() {
 function rowDate(row, dateHeader) {
   const v = row?.[dateHeader];
   if (v instanceof Date) return new Date(v.getFullYear(), v.getMonth(), v.getDate());
-  const s = String(v || "").trim();
+
+  // Pulisci weekday IT (lun, mar, mer, gio, ven, sab, dom) + spazi/virgole
+  let s = String(v || "").trim();
+  s = s.replace(/^(lun|mar|mer|gio|ven|sab|dom)\.?[ ,]+/i, "");
+
+  // Parse dd/mm/yy o dd-mm-yy (anche 2 cifre per l'anno)
   const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
   if (m) {
-    const dd = parseInt(m[1],10), mm = parseInt(m[2],10)-1, yy = parseInt(m[3],10);
+    const dd = parseInt(m[1], 10), mm = parseInt(m[2], 10) - 1, yy = parseInt(m[3], 10);
     const yyyy = yy < 100 ? 2000 + yy : yy;
     return new Date(yyyy, mm, dd);
   }
+
+  // Ultimo tentativo (può essere rischioso con formati locali)
   const dt = new Date(s);
   return isNaN(+dt) ? null : new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
 }
+
 function filterFromToday(rows) {
   const header = autoDetectDateHeader(headersRef) || (rows[0] && autoDetectDateHeader(Object.keys(rows[0])));
   if (!header) return rows;
@@ -335,6 +414,10 @@ function applyFilters() {
   let rows = showAll ? allRows.slice() : filterFromToday(allRows);
   // 2) text search over current headers
   rows = rows.filter(r => textMatchRow(r, searchQuery, headersRef));
+
+  const dateH2 = autoDetectDateHeader(headersRef);
+  const startH2 = autoDetectStartHeader(headersRef);
+  if (dateH2) rows.sort((a, b) => compareByDateAndStart(a, b, dateH2, startH2));
   return rows;
 }
 
