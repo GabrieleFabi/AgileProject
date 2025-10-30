@@ -52,8 +52,7 @@ function isLikelyXLSXArrayBuffer(buf) {
 // Caricamento automatico XLSX locale (per Surge)
 // ==========================
 
-const DEFAULT_XLSX_URL = 'https://script.google.com/macros/s/AKfycbyV6iEsbjTO3r4e3WonIb-XisG4wvACy06j7I5gHI_hJ7Y7OXtJOiQXPtJBuBI8NjOT-w/exec?d=' + new Date().toISOString().slice(0,10);
-
+const DEFAULT_XLSX_URL = 'data/calendario.xlsx?d=' + new Date().toISOString().slice(0,10);
 
 async function loadLocalCalendar() {
   try {
