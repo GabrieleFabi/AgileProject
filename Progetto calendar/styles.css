@@ -152,6 +152,24 @@ th:nth-child(1), td:nth-child(1) {
   .input, .btn { width: 100%; }
 }
 
+body {
+    font-size: 14px; /* dimensione base più piccola */
+  }
+
+  .btn,
+  .input,
+  .legend-chip,
+  .note,
+  .muted,
+  table,
+  th,
+  td {
+    font-size: 13px; /* testi e bottoni più compatti */
+  }
+  h1 {
+    font-size: 20px;
+  }
+
 /* Home: griglia docenti */
 .teacher-grid {
   display: grid;
@@ -164,6 +182,7 @@ th:nth-child(1), td:nth-child(1) {
   font-weight: 600;
   letter-spacing: .2px;
 }
+
 
 /* Split controls left/right */
 .controls-split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: stretch; }
@@ -212,3 +231,48 @@ tbody tr.course-row {
 tbody tr.course-row:hover {
   filter: brightness(0.98);
 }
+
+/* Ottimizzazioni per telefoni molto stretti */
+@media (max-width: 380px) {
+  body {
+    font-size: 13px;
+  }
+
+  h1 {
+    font-size: 18px;
+  }
+
+  .input {
+    min-width: 100%;
+    font-size: 13px;
+    padding: 6px 8px;
+  }
+
+  .btn {
+    font-size: 13px;
+    padding: 6px 8px;
+    white-space: nowrap; /* evita a capo */
+  }
+
+  .legend-chip {
+    font-size: 12px;
+    padding: 4px 8px;
+  }
+
+  .legend-swatch {
+    width: 12px;
+    height: 12px;
+  }
+
+  table th,
+  table td {
+    font-size: 12px;
+    padding: 8px 4px;
+  }
+
+  .card .inner {
+    padding: 10px;
+  }
+}
+
+

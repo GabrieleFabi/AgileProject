@@ -208,6 +208,19 @@ function setStatus(text, tone = "info") {
   statusBadge.style.background = `linear-gradient(180deg, ${color}, #1f2937aa)`;
 }
 
+
+function scrollToTop(smooth = true) {
+  const el = document.scrollingElement || document.documentElement;
+  // iOS/Android a volte richiedono un frame per applicare lo scroll dopo il cambio sezione
+  requestAnimationFrame(() => {
+    if (smooth && "scrollBehavior" in document.documentElement.style) {
+      el.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+    } else {
+      window.scrollTo(0, 0);
+    }
+  });
+}
+
 function sanitizeHeader(h) {
   return String(h || "")
     .trim()
@@ -468,6 +481,7 @@ function openCalendarFor(displayName) {
   // Switch view
   homeSection.style.display = "none";
   calendarSection.style.display = "grid";
+  scrollToTop(); // riportati in cima pagina
   // Aggiorna hash per deep-link
   location.hash = `#docente=${encodeURIComponent(displayName)}`;
   selectedCourses.clear(); // azzera eventuali selezioni corsi precedenti
@@ -731,6 +745,7 @@ showAllBtn?.addEventListener("click", () => {
 backHomeBtn?.addEventListener("click", () => {
   calendarSection.style.display = "none";
   homeSection.style.display = "grid";
+  scrollToTop(); // torna su in cima anche nella lista docenti
   pageTitle.textContent = "Calendario Docenti";
   subLabel.textContent = "Seleziona un docente per vedere le sue lezioni";
   location.hash = "";
