@@ -22,12 +22,26 @@ jobs:
         with:
           node-version: '20'
 
-      # 1) Scarica l'UNICO Excel condiviso in /Data
+      - name: Validate web app URL
+        run: |
+          URL='${{ secrets.APPS_SCRIPT_URL_SHARED }}'
+          if [ -z "$URL" ]; then
+            echo "APPS_SCRIPT_URL_SHARED is EMPTY"; exit 1
+          fi
+          echo "URL length: ${#URL}"
+          case "$URL" in
+            https://script.google.com/*/exec*) echo "URL format looks OK";;
+            *) echo "URL must start with https://script.google.com and end with /exec"; exit 1;;
+          esac
+
       - name: Download shared calendario.xlsx
+        env:
+          URL: ${{ secrets.APPS_SCRIPT_URL_SHARED }}
         run: |
           mkdir -p Data
-          curl -L "$APPS_SCRIPT_URL_SHARED" -o Data/calendario.xlsx
+          curl --fail --show-error --location "$URL" -o Data/calendario.xlsx
           test -s Data/calendario.xlsx || (echo "XLSX missing/empty" && exit 1)
+
 
       # 2) Copia l'xlsx nelle due app (ogni sito ha la sua root su Surge)
       - name: Copy XLSX into Docenti & Studenti
