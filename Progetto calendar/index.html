@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Calendario Studs 2025-2027</title>
+    <title>Calendario Docenti — Giacomazzi Enrico (Upload locale)</title>
     <link rel="stylesheet" href="styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   </head>
@@ -11,132 +11,44 @@
     <div class="wrap">
       <header>
         <div class="title">
-          <div class="logo" id="courseLogo" aria-hidden="true"></div>
+          <div class="logo" id="courseLogo" aria-hidden="true">DOCENTE</div>
           <div>
-            <h1>Calendario Studs 2025/2027</h1>
+            <h1>Calendario Docenti</h1>
             <div class="sub">
-              <span id="yearLabel">Scegli un anno per iniziare</span>
+              <span id="subLabel">Lezioni di <strong>Giacomazzi Enrico</strong></span>
             </div>
           </div>
         </div>
 
-        <input
-          id="fileInput"
-          type="file"
-          accept=".xlsx,.xls,.csv"
-          style="display: none"
-        />
-
-        <button class="btn ghost" id="btnBack" type="button">
-          ⬅️ Torna alla selezione corso
-        </button>
-        <div class="badge" id="statusBadge">Nessun file</div>
+        <div class="badge" id="statusBadge">Carica un file Excel (.xlsx)…</div>
       </header>
 
-      <!-- Landing -->
-      <section id="landing" class="landing">
-        <div class="landing-card">
-          <h2>Inizia caricando il file Excel e poi scegli l'Anno</h2>
-          <div class="landing-buttons">
-            <button class="btn big" id="btnLoadTop" type="button">
-              📄 Carica Excel adesso
-            </button>
-            <button class="btn big ghost" id="btnClearTop" type="button">
-              🧹 Pulisci tabella
-            </button>
-          </div>
-          <p class="hint">
-            Dopo il caricamento, scegli l’Anno e poi il Corso: il foglio verrà
-            pre-selezionato automaticamente.
-          </p>
-
-          <h2 style="margin-top: 20px">Seleziona l'Anno</h2>
-          <div class="landing-buttons">
-            <button class="btn big primary" data-anno="1">Anno 1</button>
-            <button class="btn big primary" data-anno="2">Anno 2</button>
-          </div>
-          <p class="hint">Puoi anche cambiare file in qualsiasi momento.</p>
-        </div>
-      </section>
-
-      <!-- Selezione corso -->
-      <section id="courseSection" class="landing hidden">
-        <div class="landing-card">
-          <h2>Seleziona il Corso</h2>
-          <div class="landing-buttons" id="courseButtons"></div>
-          <p class="hint" id="courseHint">Scegli un anno per continuare.</p>
-        </div>
-      </section>
-
-      <!-- Calendario -->
-      <section id="appSection" class="uibox hidden">
-        <div class="controls-split">
-          <div class="card" id="searchBar">
-            <div class="card-title" id="searchTitle">Cerca</div>
-            <div class="inner row-controls">
-              <div class="stack">
-                <input
-                  id="searchInput"
-                  type="search"
-                  aria-labelledby="searchTitle"
-                  placeholder="Cerca in tabella (testo, date, orari)…"
-                />
+      <!-- Upload + Calendario -->
+      <section id="appSection" class="uibox">
+        <!-- Controlli di upload -->
+        <div class="card">
+          <div class="inner controls">
+            <div id="dropZone" class="dropzone" tabindex="0" role="button" aria-label="Trascina qui il file Excel o clicca per selezionarlo">
+              <div>
+                <strong>Trascina qui</strong> il file <code>.xlsx</code><br />
+                <span class="muted">Oppure</span>
+                <button id="pickBtn" type="button" class="btn">Scegli dal computer</button>
               </div>
-              <button
-                class="btn"
-                id="btnToggleAll"
-                type="button"
-                title="Mostra tutto il calendario"
-              >
-                📅 Mostra tutto
-              </button>
+              <input id="fileInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden />
             </div>
-          </div>
-
-          <div class="card">
-            <div class="inner legend">
-              <div class="legend-title">Legenda</div>
-              <div class="legend-item">
-                <span
-                  class="legend-chip legend-chip--orange"
-                  aria-hidden="true"
-                ></span>
-                <span
-                  >Giornata evidenziata in <strong>arancione</strong>:
-                  minore di <strong>8h</strong> di lezione.</span
-                >
-              </div>
-              <div class="legend-item">
-                <span
-                  class="legend-chip legend-chip--red"
-                  aria-hidden="true"
-                ></span>
-                <span
-                  >Giornata evidenziata in <strong>rosso</strong>: minore/uguale
-                  di <strong>4h</strong> di lezione.</span
-                >
-              </div>
-              <div class="legend-item">
-                <span
-                  class="legend-chip legend-chip--green"
-                  aria-hidden="true"
-                ></span>
-                <span
-                  >Riga in <strong>verde</strong>:
-                  <strong>Esame</strong> (penultima lezione del modulo).</span
-                >
-              </div>
+            <div class="note">
+              Il file deve essere lo stesso usato per gli studenti. Verranno mostrate solo le lezioni del docente selezionato.
             </div>
           </div>
         </div>
 
-        <!-- UI nascoste richieste da app.js -->
+        <!-- UI nascoste richieste da app.js (solo per funzioni di formattazione) -->
         <div class="hidden-ui">
-          <select id="sheetSelect"></select>
           <select id="dateColumnSelect"></select>
           <select id="timeColumnSelect"></select>
         </div>
 
+        <!-- Calendario -->
         <div class="card">
           <div class="table-wrap">
             <table id="dataTable" aria-live="polite">
@@ -146,13 +58,25 @@
           </div>
           <div class="footer">
             <div id="rowsCount">—</div>
+            <div id="paginationControls" class="pager">
+              <button id="prevPage" class="btn" type="button" aria-label="Pagina precedente">←</button>
+              <span id="pageInfo" class="muted" style="min-width:110px; text-align:center;">—</span>
+              <button id="nextPage" class="btn" type="button" aria-label="Pagina successiva">→</button>
+              <span class="muted" style="margin-left:8px;">/ per pagina</span>
+              <select id="pageSize" class="sel">
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
           </div>
         </div>
       </section>
     </div>
 
     <script>
-      window.CALENDAR_XLSX_URL = "/data/calendario.xlsx";
+      // Nome esatto del docente da filtrare
+      window.TEACHER_NAME = "GIACOMAZZI ENRICO";
     </script>
     <script src="app.js" defer></script>
   </body>
