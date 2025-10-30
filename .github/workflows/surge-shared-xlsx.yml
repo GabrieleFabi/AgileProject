@@ -1,13 +1,13 @@
 name: Deploy Docenti & Studenti (shared XLSX)
 
 on:
+  schedule:
+    - cron: '0 */4 * * *'   # ogni 4 ore
   push:
     paths:
       - 'Docenti/**'
       - 'Studenti/**'
       - '.github/workflows/surge-shared-xlsx.yml'
-  schedule:
-    - cron: '0 */4 * * *'   # ogni 4 ore
   workflow_dispatch:
 
 jobs:
@@ -22,16 +22,14 @@ jobs:
         with:
           node-version: '20'
 
-      # 1) Scarica l'UNICO Excel sorgente nella cartella /Data
+      # 1) Scarica l'UNICO Excel condiviso in /Data
       - name: Download shared calendario.xlsx
         run: |
           mkdir -p Data
           curl -L "$APPS_SCRIPT_URL_SHARED" -o Data/calendario.xlsx
           test -s Data/calendario.xlsx || (echo "XLSX missing/empty" && exit 1)
-        env:
-          APPS_SCRIPT_URL_SHARED: ${{ secrets.APPS_SCRIPT_URL_SHARED }}
 
-      # 2) Copia l'xlsx nelle due app
+      # 2) Copia l'xlsx nelle due app (ogni sito ha la sua root su Surge)
       - name: Copy XLSX into Docenti & Studenti
         run: |
           mkdir -p "Docenti/data" "Studenti/data"
@@ -41,7 +39,7 @@ jobs:
       - name: Install Surge
         run: npm i -g surge
 
-      # 3) Deploy Docenti
+      # 3) Deploy Docenti (upload differenziale: cambierà solo l'xlsx)
       - name: Deploy Docenti
         run: |
           surge --project "Docenti" \
@@ -55,6 +53,7 @@ jobs:
                 --domain "$SURGE_DOMAIN_STUD" \
                 --token "$SURGE_TOKEN"
         env:
-          SURGE_TOKEN:        ${{ secrets.SURGE_TOKEN }}
-          SURGE_DOMAIN_DOC:   ${{ secrets.SURGE_DOMAIN_DOC }}
-          SURGE_DOMAIN_STUD:  ${{ secrets.SURGE_DOMAIN_STUD }}
+          SURGE_TOKEN:            ${{ secrets.SURGE_TOKEN }}
+          SURGE_DOMAIN_DOC:       ${{ secrets.SURGE_DOMAIN_DOC }}
+          SURGE_DOMAIN_STUD:      ${{ secrets.SURGE_DOMAIN_STUD }}
+          APPS_SCRIPT_URL_SHARED: ${{ secrets.APPS_SCRIPT_URL_SHARED }}

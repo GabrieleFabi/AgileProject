@@ -59,6 +59,35 @@ const PALETTE = [
   { base: "#e9d5ff", border: "#9333ea" }, // viola pastello
 ];
 
+// ==========================
+// Caricamento automatico XLSX locale (per Surge)
+// ==========================
+
+// Percorso locale al file Excel (stesso nome/stesso posto)
+const DEFAULT_XLSX_URL = 'data/calendario.xlsx?d=' + new Date().toISOString().slice(0,10);
+
+// Carica e parsa l'Excel locale, poi costruisce la UI docenti
+async function loadLocalCalendar() {
+  try {
+    setStatus("Carico calendario locale…");
+    const res = await fetch(DEFAULT_XLSX_URL, { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const buf = await res.arrayBuffer();
+    workbook = XLSX.read(buf, { type: "array" });
+
+    // Popola subito la lista docenti dalla variabile globale "workbook"
+    buildTeacherList();
+
+    setStatus("Calendario caricato (locale)", "ok");
+  } catch (err) {
+    console.error("Errore nel caricamento calendario locale:", err);
+    setStatus("Errore nel caricamento del calendario locale.", "err");
+  }
+}
+
+// Avvio automatico all’apertura pagina
+window.addEventListener("DOMContentLoaded", loadLocalCalendar);
+
 function hashStr(s) {
   s = String(s || "");
   let h = 2166136261 >>> 0;         // FNV-1a-like
@@ -269,33 +298,6 @@ function excelToJson(ws) {
   return { headers, rows };
 }
 
-// Web App Apps Script (deve finire con /exec)
-const XLSX_ENDPOINT = 'https://script.google.com/a/macros/stud.itsaltoadriatico.it/s/AKfycbw5tBdMLyroEgcy9V5iS8E6GKXhBoecEeFAanWtdF-OFMlf-Y3VeRxjPthcXGtX57HvrA/exec';
-
-// Cache-buster giornaliero per evitare cache aggressive del browser/CDN
-const todayKey = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-};
-
-const DEFAULT_XLSX_URL = `data/calendario.xlsx?d=${new Date().toISOString().slice(0,10)}`;
-
-// Carica l’XLSX all’avvio
-async function loadCalendarFromScript() {
-  const url = `${XLSX_ENDPOINT}?v=${todayKey()}`;
-  const res = await fetch(url, { method: 'GET', credentials: 'include' }); // include cookie Google se l’utente è loggato
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const buf = await res.arrayBuffer();
-  // Leggi il workbook e riusa la tua logica esistente
-  workbook = XLSX.read(new Uint8Array(buf), { type: 'array' });
-  buildTeacherList(); // <-- è la tua funzione che parte dalla variabile globale "workbook"
-}
-
-// Esegui all’avvio (e gestisci eventuali errori con un messaggio UI)
-loadCalendarFromScript().catch(err => {
-  console.error('Errore caricamento XLSX:', err);
-  setStatus('Impossibile caricare il calendario. Verifica accesso con account scuola e riprova.', 'err');
-});
 
 // Data/ora pretty
 const DATE_HEADER_RE = /^(data|date)$/i;

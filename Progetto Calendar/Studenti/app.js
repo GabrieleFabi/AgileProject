@@ -16,6 +16,47 @@ const appSection = $("#appSection");
 const yearLabel = $("#yearLabel");
 const courseSection = $("#courseSection");
 
+// ==========================
+// Caricamento automatico XLSX locale (per Surge)
+// ==========================
+
+const DEFAULT_XLSX_URL = 'data/calendario.xlsx?d=' + new Date().toISOString().slice(0,10);
+
+async function loadLocalCalendar() {
+  try {
+    setStatus("Carico calendario locale…");
+    const res = await fetch(DEFAULT_XLSX_URL, { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const buf = await res.arrayBuffer();
+    workbook = XLSX.read(buf, { type: "array" });
+
+    // Seleziona automaticamente il foglio predefinito (es. Fust)
+    const defaultSheet =
+      workbook.SheetNames.find((n) => n.toLowerCase().includes("fust")) ||
+      workbook.SheetNames[0];
+
+    // Popola la select e carica la tabella
+    sheetSelect.innerHTML = "";
+    workbook.SheetNames.forEach((name, i) => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = `${i + 1}. ${name}`;
+      sheetSelect.appendChild(opt);
+    });
+
+    sheetSelect.value = defaultSheet;
+    loadSheet(defaultSheet);
+
+    setStatus("Calendario caricato (locale)", "ok");
+  } catch (err) {
+    console.error("Errore nel caricamento calendario locale:", err);
+    setStatus("Errore nel caricamento del calendario locale.", "err");
+  }
+}
+
+// Avvia caricamento all’apertura della pagina
+window.addEventListener("DOMContentLoaded", loadLocalCalendar);
+
 let workbook = null;
 let baseHeaders = []; // headers originali del foglio
 let currentHeaders = [];
@@ -184,37 +225,6 @@ function renderOptions(selectEl, options) {
 }
 
 
-async function fetchAndLoadXlsx(url) {
-  try {
-    setStatus("Carico calendario…");
-    const bust = url + (url.includes("?") ? "&" : "?") + "_=" + Date.now();
-    const res = await fetch(bust, { cache: "no-store" });
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    const ab = await res.arrayBuffer();
-    workbook = XLSX.read(ab, { type: "array" });
-
-    // Popola select fogli
-    sheetSelect.innerHTML = "";
-    workbook.SheetNames.forEach((name, i) => {
-      const opt = document.createElement("option");
-      opt.value = name;
-      opt.textContent = `${i + 1}. ${name}`;
-      sheetSelect.appendChild(opt);
-    });
-
-    const defaultSheet =
-      workbook.SheetNames.find((n) => n.toLowerCase().includes("fust")) ||
-      workbook.SheetNames[0];
-
-    sheetSelect.value = defaultSheet;
-    loadSheet(defaultSheet);
-
-    setStatus("Pronto (XLSX)", "ok");
-  } catch (e) {
-    console.error(e);
-    setStatus("Errore caricamento XLSX", "err");
-  }
-}
 
 // --- Helpers date/time ---------------------------------------------------
 const DATE_HEADER_RE = /^(data|date)$/i;
@@ -622,22 +632,6 @@ function renderTable(_headersInput, rowsBase) {
   renderOptions(timeColumnSelect, ["— nessuna —", ...headers]);
 }
 
-function scheduleMidnightRefresh() {
-  if (!window.CALENDAR_XLSX_URL) return;
-  const now = new Date();
-  const next = new Date(now);
-  next.setDate(now.getDate() + 1);
-  next.setHours(0, 5, 0, 0); // 00:05
-
-  const ms = next - now;
-  setTimeout(async () => {
-    try {
-      await fetchAndLoadXlsx(window.CALENDAR_XLSX_URL);
-    } finally {
-      scheduleMidnightRefresh();
-    }
-  }, ms);
-}
 
 // Import e caricamento ----------------------------------------------------
 async function handleFile(file) {
@@ -827,10 +821,7 @@ $$(".landing [data-anno]").forEach((btn) => {
 
 // Init --------------------------------------------------------------------
 (function init() {
-  if (window.CALENDAR_XLSX_URL) {
-    fetchAndLoadXlsx(window.CALENDAR_XLSX_URL);
-    scheduleMidnightRefresh();
-  }
+  // (Rimosso il ramo con window.CALENDAR_XLSX_URL)
 
   localStorage.removeItem("cal-anno");
 
@@ -843,7 +834,7 @@ $$(".landing [data-anno]").forEach((btn) => {
   landing.classList.remove("hidden");
   courseSection.classList.add("hidden");
   appSection.classList.add("hidden");
-  btnBack.classList.add("hidden");  
+  btnBack.classList.add("hidden");
   yearLabel.textContent = "Scegli un anno per iniziare";
 
   setStatus("Carico calendario…");
