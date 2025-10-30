@@ -284,18 +284,16 @@ async function loadCalendarFromScript() {
   const res = await fetch(url, { method: 'GET', credentials: 'include' }); // include cookie Google se l’utente è loggato
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const buf = await res.arrayBuffer();
-  // Se usi SheetJS:
-  const workbook = XLSX.read(new Uint8Array(buf), { type: 'array' });
-  // poi la tua logica esistente che popola la tabella…
-  renderFromWorkbook(workbook); // <— usa la tua funzione
+  // Leggi il workbook e riusa la tua logica esistente
+  workbook = XLSX.read(new Uint8Array(buf), { type: 'array' });
+  buildTeacherList(); // <-- è la tua funzione che parte dalla variabile globale "workbook"
 }
 
 // Esegui all’avvio (e gestisci eventuali errori con un messaggio UI)
 loadCalendarFromScript().catch(err => {
   console.error('Errore caricamento XLSX:', err);
-  showStatus('Impossibile caricare il calendario. Verifica accesso con account scuola e riprova.'); // tua funzione
+  setStatus('Impossibile caricare il calendario. Verifica accesso con account scuola e riprova.', 'err');
 });
-
 
 // Data/ora pretty
 const DATE_HEADER_RE = /^(data|date)$/i;
