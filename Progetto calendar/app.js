@@ -576,12 +576,19 @@ function renderOptions(selectEl, options) {
   selectEl.innerHTML = options.map((o) => `<option value="${String(o)}">${String(o)}</option>`).join("");
 }
 
+function updateShowAllLabel() {
+  if (!showAllBtn) return;
+  showAllBtn.textContent = showAll ? "📅 Mostra da oggi" : "📅 Mostra tutto";
+}
+
 function renderTable() {
   const headers = headersRef.slice();
   const rows = getPageSlice();
 
   tHead.innerHTML = "";
   tBody.innerHTML = "";
+
+  updateShowAllLabel();
 
   if (!headers.length || !rows.length) {
     rowsCount.textContent = "—";
@@ -680,8 +687,9 @@ searchInput?.addEventListener("keydown", (e) => {
 // Toggle mostra da oggi / tutto
 showAllBtn?.addEventListener("click", () => {
   showAll = !showAll;
-  showAllBtn.textContent = showAll ? "Mostra da oggi" : "Mostra tutto";
-  rowsForTeacher = applyFilters(); currentPage = 1; renderTable();
+  rowsForTeacher = applyFilters();
+  currentPage = 1;
+  renderTable(); // aggiorna anche il testo del bottone
 });
 
 // Torna alla Home
@@ -697,7 +705,6 @@ backHomeBtn?.addEventListener("click", () => {
 // --- Init ---------------------------------------------------------------
 (function init() {
   setStatus("Carica un file Excel (.xlsx)…");
-  if (showAllBtn) showAllBtn.textContent = showAll ? "Mostra da oggi" : "Mostra tutto";
 
   // Se l'URL contiene #docente=, mostreremo il calendario dopo il caricamento del file
   window.addEventListener("hashchange", () => {
