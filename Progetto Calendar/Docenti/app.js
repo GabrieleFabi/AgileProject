@@ -70,7 +70,9 @@ const DEFAULT_XLSX_URL = 'https://script.google.com/macros/s/AKfycbx0QVSHydNupKv
 // Carica e parsa l'Excel locale, poi costruisce la UI docenti
 async function loadLocalCalendar() {
   try {
-    setStatus("Carico calendario locale…");
+    const IS_REMOTE = /^https?:\/\//i.test(DEFAULT_XLSX_URL.replace(/\?.*$/, ""));
+    const LABEL_SRC = IS_REMOTE ? "(web app)" : "(locale)";
+    setStatus(`Calendario caricato ${LABEL_SRC}`, "ok");
     const res = await fetch(DEFAULT_XLSX_URL, { cache: "no-store" });
     if (!res.ok) throw new Error("HTTP " + res.status);
     const buf = await res.arrayBuffer();
