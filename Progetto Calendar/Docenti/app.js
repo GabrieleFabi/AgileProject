@@ -59,12 +59,28 @@ const PALETTE = [
   { base: "#e9d5ff", border: "#9333ea" }, // viola pastello
 ];
 
-// ==========================
-// Caricamento automatico XLSX locale (per Surge)
-// ==========================
+const DEFAULT_XLSX_URL = 'data/calendario.xlsx?d=' + new Date().toISOString().slice(0,10);
 
-// Utility: base64 -> ArrayBuffer
-function b64ToArrayBuffer(b64) {
+
+// --- Helpers per scaricare XLSX da Web App (JSON b64) o file statico ---
+async function fetchXlsxArrayBuffer(url) {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+  const ct = (res.headers.get("Content-Type") || "").toLowerCase();
+
+  // Caso 1: Web App GAS → JSON base64 { b64: "..." }
+  if (ct.includes("application/json")) {
+    const j = await res.json();
+    if (!j || !j.b64) throw new Error("Risposta JSON senza campo b64");
+    return base64ToArrayBuffer(j.b64);
+  }
+
+  // Caso 2: file statico .xlsx (Surge)
+  return await res.arrayBuffer();
+}
+
+function base64ToArrayBuffer(b64) {
   const binary = atob(b64);
   const len = binary.length;
   const bytes = new Uint8Array(len);
@@ -72,39 +88,36 @@ function b64ToArrayBuffer(b64) {
   return bytes.buffer;
 }
 
+function isLikelyXLSXArrayBuffer(buf) {
+  if (!buf || !buf.byteLength) return false;
+  const u8 = new Uint8Array(buf.slice(0, 4));
+  return u8[0] === 0x50 && u8[1] === 0x4B && u8[2] === 0x03 && u8[3] === 0x04; // "PK\003\004"
+}
+
+
+// ==========================
+// Caricamento automatico XLSX locale (per Surge)
+// =========================
+
 // Carica e parsa l'Excel (GAS JSON b64 o file statico .xlsx)
 async function loadLocalCalendar() {
   try {
-    const url = DEFAULT_XLSX_URL;
-    const isGAS = /script\.google\.com\/macros\/s\//i.test(url);
+    setStatus("Carico calendario…");
 
-    setStatus(`Carico calendario ${isGAS ? "(web app GAS)" : "(statico)" }…`);
-
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) throw new Error("HTTP " + res.status);
-
-    let buf;
-    if (isGAS) {
-      // La web app GAS risponde con { b64: "..." }
-      const data = await res.json().catch(() => ({}));
-      if (!data || !data.b64) {
-        // Se non c'è b64, mostro l'eventuale testo per capire l'errore
-        const txt = await res.text().catch(() => "");
-        throw new Error("Risposta GAS senza b64. Dettagli: " + (txt || "nessun corpo"));
-      }
-      buf = b64ToArrayBuffer(data.b64);
-    } else {
-      // File statico .xlsx
-      buf = await res.arrayBuffer();
+    const buf = await fetchXlsxArrayBuffer(DEFAULT_XLSX_URL);
+    if (!isLikelyXLSXArrayBuffer(buf)) {
+      throw new Error("Il file ottenuto non è un .xlsx valido (assenza firma PK)");
     }
 
     // Leggi workbook con SheetJS
     workbook = XLSX.read(buf, { type: "array" });
 
-    // Costruisci UI
+    // Costruisci UI docenti
     buildTeacherList();
 
-    setStatus(`Calendario caricato ${isGAS ? "(web app GAS)" : "(statico)"}`, "ok");
+    const label =
+      /script\.google\.com\/macros\/s\//i.test(DEFAULT_XLSX_URL) ? "(web app GAS)" : "(statico)";
+    setStatus(`Calendario caricato ${label}`, "ok");
   } catch (err) {
     console.error("Errore nel caricamento calendario:", err);
     setStatus("Errore nel caricamento del calendario.", "err");
