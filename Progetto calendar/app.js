@@ -122,33 +122,58 @@ function courseColor(courseName) {
 function buildLegendFromRows(rows) {
   const byCourse = new Map();
   rows.forEach(r => {
-    const c = r["Corso"];
-    if (!c) return;
-    if (!byCourse.has(c)) byCourse.set(c, courseColor(c));
+    const cName = r["Corso"];
+    if (!cName) return;
+    if (!byCourse.has(cName)) byCourse.set(cName, courseColor(cName));
   });
+
   const legend = document.getElementById("legend");
   if (!legend) return;
   legend.innerHTML = "";
+
   if (!byCourse.size) {
     legend.innerHTML = "<span class='muted'>Legenda corsi: nessun corso visibile</span>";
     return;
   }
+
   const frag = document.createDocumentFragment();
   [...byCourse.keys()].sort((a,b) => a.localeCompare(b, "it")).forEach(corso => {
     const c = byCourse.get(corso);
-    const chip = document.createElement("div");
+
+    // chip = bottone toggle
+    const chip = document.createElement("button");
+    chip.type = "button";
     chip.className = "legend-chip";
+    chip.setAttribute("role", "switch");
+    const active = selectedCourses.has(corso);
+    chip.setAttribute("aria-checked", active ? "true" : "false");
+    chip.classList.toggle("is-active", active);
+
     const sw = document.createElement("span");
     sw.className = "legend-swatch";
     sw.style.background = c.swatch;
-    chip.appendChild(sw);
+
     const label = document.createElement("span");
     label.textContent = corso;
+
+    chip.appendChild(sw);
     chip.appendChild(label);
+
+    // toggle filtro al click
+    chip.addEventListener("click", () => {
+      if (selectedCourses.has(corso)) selectedCourses.delete(corso);
+      else selectedCourses.add(corso);
+      rowsForTeacher = applyFilters();
+      currentPage = 1;
+      renderTable(); // ricostruisce tabella e aggiorna legenda (stato chip)
+    });
+
     frag.appendChild(chip);
   });
+
   legend.appendChild(frag);
 }
+
 
 
 // Stato
@@ -166,6 +191,7 @@ let pageSize = 25; // default
 // Filtri
 let showAll = false;   // default: mostra da OGGI in poi
 let searchQuery = "";  // testo di ricerca
+let selectedCourses = new Set();  // ← nuovo: corsi selezionati dalla legenda
 
 // --- Utility UI -------------------------------------------------------------
 function setStatus(text, tone = "info") {
@@ -443,6 +469,7 @@ function openCalendarFor(displayName) {
   calendarSection.style.display = "grid";
   // Aggiorna hash per deep-link
   location.hash = `#docente=${encodeURIComponent(displayName)}`;
+  selectedCourses.clear(); // azzera eventuali selezioni corsi precedenti
   // Reset UI calendar
   showAll = false;
   searchQuery = "";
@@ -555,7 +582,14 @@ function textMatchRow(row, q, headers) {
 }
 function applyFilters() {
   let rows = showAll ? allRows.slice() : filterFromToday(allRows);
+
+  // filtro testo
   rows = rows.filter(r => textMatchRow(r, searchQuery, headersRef));
+
+  // ← nuovo: filtro corsi se c’è almeno una selezione
+  if (selectedCourses.size > 0) {
+    rows = rows.filter(r => selectedCourses.has(String(r["Corso"] || "")));
+  }
 
   const dateH2 = autoDetectDateHeader(headersRef);
   const startH2 = autoDetectStartHeader(headersRef);
@@ -636,7 +670,7 @@ function renderTable() {
   updatePagerUI();
 
   // Legenda basata sulle righe VISIBILI nel calendario (rispetta filtri/mostra da oggi)
-  buildLegendFromRows(rowsForTeacher);
+  buildLegendFromRows(allRows);
 }
 
 // --- Eventi UI -----------------------------------------------------------

@@ -96,6 +96,13 @@ th:nth-child(1), td:nth-child(1) {
   white-space: nowrap;
 }
 
+/* Chip di legenda cliccabili + stato attivo */
+.legend { gap: 8px; }
+.legend-chip { cursor: pointer; user-select: none; transition: filter .15s, box-shadow .15s; }
+.legend-chip:hover { filter: brightness(0.98); }
+.legend-chip.is-active { box-shadow: 0 0 0 2px var(--brand), var(--shadow); }
+.legend-chip .legend-swatch { flex: 0 0 14px; }
+
 .footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; color: var(--muted); font-size: 12px; }
 
 @media (max-width: 520px) {
