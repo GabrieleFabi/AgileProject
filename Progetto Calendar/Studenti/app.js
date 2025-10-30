@@ -16,21 +16,55 @@ const appSection = $("#appSection");
 const yearLabel = $("#yearLabel");
 const courseSection = $("#courseSection");
 
+// --- Helpers per scaricare XLSX da Web App (JSON b64) o file statico ---
+async function fetchXlsxArrayBuffer(url) {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+  const ct = (res.headers.get("Content-Type") || "").toLowerCase();
+
+  // Caso 1: Web App → JSON base64 { b64: "..." }
+  if (ct.includes("application/json")) {
+    const j = await res.json();
+    if (!j || !j.b64) throw new Error("Risposta JSON senza campo b64");
+    return base64ToArrayBuffer(j.b64);
+  }
+
+  // Caso 2: file statico .xlsx (Netlify/Surge)
+  return await res.arrayBuffer();
+}
+
+function base64ToArrayBuffer(b64) {
+  const binary = atob(b64);
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+function isLikelyXLSXArrayBuffer(buf) {
+  if (!buf || !buf.byteLength) return false;
+  const u8 = new Uint8Array(buf.slice(0, 4));
+  return u8[0] === 0x50 && u8[1] === 0x4B && u8[2] === 0x03 && u8[3] === 0x04;
+}
+
 // ==========================
 // Caricamento automatico XLSX locale (per Surge)
 // ==========================
 
-const DEFAULT_XLSX_URL = 'https://script.google.com/macros/s/AKfycbx0QVSHydNupKvetgdE5n5MMmzqAjLUDgZEIkV2UvZn05FjDKNFYphPP4kiWW8tPysipQ/exec?d=' + new Date().toISOString().slice(0,10);
+const DEFAULT_XLSX_URL = 'https://script.google.com/macros/s/AKfycbyV6iEsbjTO3r4e3WonIb-XisG4wvACy06j7I5gHI_hJ7Y7OXtJOiQXPtJBuBI8NjOT-w/exec?d=' + new Date().toISOString().slice(0,10);
 
 
 async function loadLocalCalendar() {
   try {
-    const IS_REMOTE = /^https?:\/\//i.test(DEFAULT_XLSX_URL.replace(/\?.*$/, ""));
-    const LABEL_SRC = IS_REMOTE ? "(web app)" : "(locale)";
-    setStatus(`Calendario caricato ${LABEL_SRC}`, "ok");
-    const res = await fetch(DEFAULT_XLSX_URL, { cache: "no-store" });
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    const buf = await res.arrayBuffer();
+    setStatus("Carico calendario…");
+
+    const buf = await fetchXlsxArrayBuffer(DEFAULT_XLSX_URL);
+
+    if (!isLikelyXLSXArrayBuffer(buf)) {
+      throw new Error("Il file ottenuto non è un .xlsx valido (no firma PK)");
+    }
+
     workbook = XLSX.read(buf, { type: "array" });
 
     // Seleziona automaticamente il foglio predefinito (es. Fust)
@@ -50,10 +84,12 @@ async function loadLocalCalendar() {
     sheetSelect.value = defaultSheet;
     loadSheet(defaultSheet);
 
-    setStatus("Calendario caricato (locale)", "ok");
+    const IS_REMOTE = /^https?:\/\//i.test(DEFAULT_XLSX_URL);
+    const LABEL_SRC = IS_REMOTE ? "(web app)" : "(locale)";
+    setStatus(`Calendario caricato ${LABEL_SRC}`, "ok");
   } catch (err) {
-    console.error("Errore nel caricamento calendario locale:", err);
-    setStatus("Errore nel caricamento del calendario locale.", "err");
+    console.error("Errore nel caricamento calendario:", err);
+    setStatus("Errore nel calendario (non è un XLSX oppure URL non raggiungibile).", "err");
   }
 }
 
