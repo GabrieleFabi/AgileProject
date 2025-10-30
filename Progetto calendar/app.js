@@ -1,12 +1,21 @@
-// Calendario Docenti — Upload locale per GIACOMAZZI ENRICO
-// Carica un XLSX dal computer e mostra SOLO le lezioni del docente richiesto.
+// Calendario Docenti — Home + Calendario
+// Carica un XLSX e genera i bottoni dei docenti; poi mostra il calendario filtrato per docente.
 
 // --- Helpers DOM ---------------------------------------------------------
 const $ = (sel, root = document) => root.querySelector(sel);
 const statusBadge = $("#statusBadge");
+const pageTitle = $("#pageTitle");
+const subLabel = $("#subLabel");
+const homeSection = $("#homeSection");
+const calendarSection = $("#calendarSection");
+const teacherList = $("#teacherList");
+const teacherSearch = $("#teacherSearch");
+const resetTeacherSearch = $("#resetTeacherSearch");
+
 const dropZone = $("#dropZone");
 const pickBtn = $("#pickBtn");
 const fileInput = $("#fileInput");
+
 const dateColumnSelect = $("#dateColumnSelect");
 const timeColumnSelect = $("#timeColumnSelect");
 const table = $("#dataTable");
@@ -19,22 +28,25 @@ const pageInfo = $("#pageInfo");
 const pageSizeSel = $("#pageSize");
 const showAllBtn = $("#showAllBtn");
 const searchInput = $("#searchInput");
+const backHomeBtn = $("#backHomeBtn");
 
 // Stato
 let workbook = null;
 let headersRef = [];
-let rowsTeacher = [];
+let allRows = [];      // dataset completo filtrabile
+let rowsForTeacher = [];
+let teacherHeader = null;
+let selectedTeacher = null;
 
 // Paginazione
 let currentPage = 1;
 let pageSize = 25; // default
 
-// Filtri (devono essere globali e definiti prima di init)
+// Filtri
 let showAll = false;   // default: mostra da OGGI in poi
-let allRows = [];      // dataset completo
 let searchQuery = "";  // testo di ricerca
 
-// --- Utility -------------------------------------------------------------
+// --- Utility UI -------------------------------------------------------------
 function setStatus(text, tone = "info") {
   statusBadge.textContent = text;
   const color =
@@ -54,7 +66,7 @@ function sanitizeHeader(h) {
     .trim()
     .replace(/\s+/g, " ")
     .replace(/[\n\r]+/g, " ")
-    .replace(/[<>"']/g, "")
+    .replace(/[<>\"']/g, "")
     .slice(0, 80);
 }
 
@@ -102,6 +114,7 @@ const DATE_HEADER_RE = /^(data|date)$/i;
 const START_HEADER_RE = /^(dalle|ora ?inizio|inizio|start)$/i;
 const END_HEADER_RE = /^(alle|ora ?fine|fine|end)$/i;
 const TIME_HEADER_RE = /^(ora|orario|dalle|alle|inizio|fine|start|end)$/i;
+const TEACHER_HEADER_RE = /^(docente|insegnante|prof|teacher|formatore)$/i;
 
 function autoDetectDateHeader(headers) {
   const chosen = dateColumnSelect?.value && dateColumnSelect.value !== "— nessuna —" ? dateColumnSelect.value : null;
@@ -114,9 +127,11 @@ function autoDetectStartHeader(headers) {
 function autoDetectEndHeader(headers) {
   return headers.find((h) => END_HEADER_RE.test(String(h))) || null;
 }
-function isLikelyTimeHeader(h) {
-  return !!h && TIME_HEADER_RE.test(String(h).trim());
+function autoDetectTeacherHeader(headers) {
+  return headers.find((h) => TEACHER_HEADER_RE.test(String(h).trim())) || null;
 }
+function isLikelyTimeHeader(h) { return !!h && TIME_HEADER_RE.test(String(h).trim()); }
+
 function fmtDateIT(d) {
   try {
     if (!(d instanceof Date)) return String(d);
@@ -146,15 +161,12 @@ function fmtTimeFromDate(d) {
 }
 
 function parseTimeValue(v) {
-  // Date -> minuti UTC
   if (v instanceof Date) return v.getUTCHours() * 60 + v.getUTCMinutes();
-  // Numero frazionario Excel (0..1) -> minuti
   if (typeof v === "number" && v >= 0 && v < 1) return Math.round(v * 24 * 60);
-  // Stringa tipo "09:00" o "09:00\n-\n13:00"
   const s = String(v || "").trim();
   const m = s.match(/(\d{1,2}):(\d{2})/);
   if (m) return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
-  return 0; // fallback: trattala come 00:00
+  return 0;
 }
 
 function prettyValue(v, header) {
@@ -166,80 +178,50 @@ function prettyValue(v, header) {
   return String(v);
 }
 
-
-// --- Post-processing: pulizia colonne -------------------------------
-function normalizeHeaderName(h) {
-  return String(h || "").trim().toLowerCase();
-}
+// --- Normalizzazione e pulizia colonne ----------------------------------
+function normalizeHeaderName(h) { return String(h || "").trim().toLowerCase(); }
 
 function dropUnwantedColumns(headers, rows) {
   const norm = headers.map(normalizeHeaderName);
-
-  // colonne candidate da rimuovere
   const removeByName = new Set();
+
   norm.forEach((h, i) => {
-    // rimuovi "giorno", "frot2" e la colonna docente (sinonimi)
     if (
       h === "giorno" ||
       h === "frot2" ||
       /^(docente|insegnante|prof|teacher|formatore)$/.test(h)
-    ) {
-      removeByName.add(headers[i]);
-    }
+    ) removeByName.add(headers[i]);
   });
 
-  // rimuovi colonne completamente vuote
   const isColEmpty = (hdr) => rows.every((r) => {
     const v = r[hdr];
     return v === null || v === undefined || String(v).trim() === "";
   });
+  headers.forEach((hdr) => { if (isColEmpty(hdr)) removeByName.add(hdr); });
+
   headers.forEach((hdr) => {
-    if (isColEmpty(hdr)) removeByName.add(hdr);
+    if (normalizeHeaderName(hdr) === "colonna" && isColEmpty(hdr)) removeByName.add(hdr);
   });
 
-  // rimuovi colonne chiamate "colonna" SOLO se vuote
-  headers.forEach((hdr, i) => {
-    if (normalizeHeaderName(hdr) === "colonna" && isColEmpty(hdr)) {
-      removeByName.add(hdr);
-    }
-  });
-
-  // Applica rimozioni
   const keptHeaders = headers.filter((h) => h === 'Corso' || !removeByName.has(h));
   const cleanedRows = rows.map((row) => {
-    const o = {};
-    keptHeaders.forEach((h) => (o[h] = row[h]));
-    return o;
+    const o = {}; keptHeaders.forEach((h) => (o[h] = row[h])); return o;
   });
   return { headers: keptHeaders, rows: cleanedRows };
 }
 
-// Rileva colonna docente
-const TEACHER_HEADER_RE = /^(docente|insegnante|prof|teacher|formatore)$/i;
-function autoDetectTeacherHeader(headers) {
-  return headers.find((h) => TEACHER_HEADER_RE.test(String(h).trim())) || null;
-}
-
-
-function normalizeCourseName(name) {
-  // "Fust A1" -> "Fust1" (spazio opzionale, case-insensitive)
-  return String(name || "").replace(/\s*A1\b/i, "1");
-}
+function normalizeCourseName(name) { return String(name || "").replace(/\s*A1\b/i, "1"); }
 
 function compareByDateAndStart(a, b, dateH, startH) {
   const da = rowDate(a, dateH);
   const db = rowDate(b, dateH);
-
-  // Prima: confronto della data (null va in fondo)
   if (da && db) {
     const diff = da.getTime() - db.getTime();
     if (diff !== 0) return diff;
   } else if (da) return -1;
   else if (db) return 1;
-
-  // Poi: confronto dell'ora di inizio (se c'è una colonna riconoscibile)
   if (startH) {
-    const ta = parseTimeValue(a[startH]);  // vedi patch #2
+    const ta = parseTimeValue(a[startH]);
     const tb = parseTimeValue(b[startH]);
     return ta - tb;
   }
@@ -252,37 +234,124 @@ async function handleFile(file) {
     setStatus("Leggo il file…");
     const ab = await file.arrayBuffer();
     workbook = XLSX.read(ab, { type: "array" });
-    processWorkbook();
+    buildTeacherList();
   } catch (e) {
     console.error(e);
     setStatus("Errore lettura file", "err");
   }
 }
 
-function processWorkbook() {
-  const teacher = String(window.TEACHER_NAME || "").trim().toLowerCase();
-  const collected = [];
-  let headersForRender = null;
+// --- Home: estrai docenti unici -----------------------------------------
+function titleCaseName(s) {
+  s = String(s || "").trim().replace(/\s+/g, " ");
+  if (!s) return "";
+  return s.toLowerCase().split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
+
+function buildTeacherList() {
+  if (!workbook) return;
+  const unique = new Map(); // key lower -> display
+  let foundCount = 0;
 
   for (const sheetName of workbook.SheetNames) {
     const ws = workbook.Sheets[sheetName];
     const { headers, rows } = excelToJson(ws);
     if (!headers.length || !rows.length) continue;
+    const tHeader = autoDetectTeacherHeader(headers);
+    if (!tHeader) continue;
+    teacherHeader = tHeader;
 
-    const teacherH = autoDetectTeacherHeader(headers);
-    if (!teacherH) continue;
+    for (const r of rows) {
+      const raw = String(r[tHeader] || "").trim().replace(/\s+/g, " ");
+      if (!raw) continue;
+      // deve avere almeno nome + cognome
+      if (raw.split(" ").length < 2) continue;
+      const key = raw.toLowerCase();
+      if (!unique.has(key)) unique.set(key, titleCaseName(raw));
+    }
+  }
 
-    const matches = rows.filter((r) => String(r[teacherH] || "").trim().toLowerCase() === teacher);
+  const arr = Array.from(unique.values()).sort((a, b) => a.localeCompare(b, "it"));
+  foundCount = arr.length;
+
+  // Render
+  teacherList.innerHTML = "";
+  if (!foundCount) {
+    teacherList.innerHTML = "<div class='muted'>Nessun docente trovato nel file.</div>";
+    setStatus("File caricato, ma nessun docente trovato", "err");
+    return;
+  }
+  setStatus("File caricato — Docenti trovati", "ok");
+
+  const frag = document.createDocumentFragment();
+  arr.forEach((name) => {
+    const btn = document.createElement("button");
+    btn.className = "btn";
+    btn.textContent = name;
+    btn.addEventListener("click", () => openCalendarFor(name));
+    frag.appendChild(btn);
+  });
+  teacherList.appendChild(frag);
+  $("#teacherCount").textContent = `${foundCount} docenti`;
+
+  // Search on home
+  teacherSearch?.addEventListener("input", () => {
+    const q = teacherSearch.value.toLowerCase();
+    [...teacherList.children].forEach(btn => {
+      btn.style.display = btn.textContent.toLowerCase().includes(q) ? "" : "none";
+    });
+  });
+  resetTeacherSearch?.addEventListener("click", () => {
+    teacherSearch.value = "";
+    teacherSearch.dispatchEvent(new Event("input"));
+  });
+}
+
+// --- Passo 2: apri calendario per docente -------------------------------
+function openCalendarFor(displayName) {
+  selectedTeacher = displayName;
+  pageTitle.textContent = "Calendario Docenti";
+  subLabel.innerHTML = `Lezioni di <strong>${displayName}</strong>`;
+  $("#courseLogo").textContent = "DOCENTE";
+
+  // Prepara dataset filtrato da workbook
+  collectRowsForTeacher(displayName);
+
+  // Switch view
+  homeSection.style.display = "none";
+  calendarSection.style.display = "grid";
+  // Aggiorna hash per deep-link
+  location.hash = `#docente=${encodeURIComponent(displayName)}`;
+  // Reset UI calendar
+  showAll = false;
+  searchQuery = "";
+  currentPage = 1;
+  renderTable();
+  setStatus(rowsForTeacher.length ? "Pronto" : "Nessuna lezione trovata", rowsForTeacher.length ? "ok" : "err");
+}
+
+function collectRowsForTeacher(displayName) {
+  headersRef = [];
+  allRows = [];
+
+  const teacherKey = String(displayName || "").trim().toLowerCase();
+  for (const sheetName of workbook.SheetNames) {
+    const ws = workbook.Sheets[sheetName];
+    const { headers, rows } = excelToJson(ws);
+    if (!headers.length || !rows.length) continue;
+
+    const tHeader = teacherHeader || autoDetectTeacherHeader(headers);
+    if (!tHeader) continue;
+
+    const matches = rows.filter((r) => String(r[tHeader] || "").trim().toLowerCase() === teacherKey);
     if (!matches.length) continue;
 
-    // Scrivi SUBITO la colonna visibile "Corso" = nome del foglio (normalizzato)
     matches.forEach((r) => (r["Corso"] = normalizeCourseName(sheetName)));
 
-    // Per mobile: se presenti Dalle + Alle, crea colonna "Orario" subito dopo Data
+    // Mobile: combina orari se possibile
     const isMobile = window.innerWidth <= 520;
     let processed = matches;
     let finalHeaders = headers.slice();
-    // Assicura che l'header "Corso" sia presente
     if (!finalHeaders.includes("Corso")) finalHeaders.push("Corso");
 
     if (isMobile) {
@@ -308,82 +377,36 @@ function processWorkbook() {
       }
     }
 
-    if (!headersForRender) headersForRender = finalHeaders.filter(Boolean);
-    collected.push(...processed);
+    if (!headersRef.length) headersRef = finalHeaders.filter(Boolean);
+    allRows.push(...processed);
   }
 
-  // Pulizia colonne in base alle regole richieste (Corso è già valorizzato)
-  const cleaned = dropUnwantedColumns(headersForRender || [], collected);
-
+  // Pulizia colonne
+  const cleaned = dropUnwantedColumns(headersRef || [], allRows);
   const dateH = autoDetectDateHeader(cleaned.headers);
   const startH = autoDetectStartHeader(cleaned.headers);
   if (dateH) cleaned.rows.sort((a, b) => compareByDateAndStart(a, b, dateH, startH));
 
-
-if (dateH) {
-  cleaned.rows.sort((a, b) => {
-    const da = rowDate(a, dateH);
-    const db = rowDate(b, dateH);
-
-    // confronto data
-    if (da && db) {
-      if (da.getTime() !== db.getTime()) return da - db;
-    } else if (da) return -1;
-    else if (db) return 1;
-
-    // confronto ora inizio se disponibile
-    if (startH) {
-      const va = a[startH];
-      const vb = b[startH];
-      const parseTime = (v) => {
-        if (v instanceof Date) return v.getUTCHours() * 60 + v.getUTCMinutes();
-        const s = String(v || "").trim();
-        const m = s.match(/(\\d{1,2}):(\\d{2})/);
-        if (m) return parseInt(m[1],10) * 60 + parseInt(m[2],10);
-        return 0;
-      };
-      const ta = parseTime(va);
-      const tb = parseTime(vb);
-      return ta - tb;
-    }
-
-    return 0;
-  });
-}
-
-
   headersRef = cleaned.headers;
   allRows = cleaned.rows;
-  rowsTeacher = applyFilters();
-  currentPage = 1;
-  renderTable();
-
-  setStatus(rowsTeacher.length ? "Pronto" : "Nessuna lezione trovata", rowsTeacher.length ? "ok" : "err");
+  rowsForTeacher = applyFilters();
 }
 
-
-function startOfToday() {
-  const d = new Date();
-  d.setHours(0,0,0,0);
-  return d;
-}
+// --- Date helpers --------------------------------------------------------
+function startOfToday() { const d = new Date(); d.setHours(0,0,0,0); return d; }
 function rowDate(row, dateHeader) {
   const v = row?.[dateHeader];
   if (v instanceof Date) return new Date(v.getFullYear(), v.getMonth(), v.getDate());
 
-  // Pulisci weekday IT (lun, mar, mer, gio, ven, sab, dom) + spazi/virgole
   let s = String(v || "").trim();
   s = s.replace(/^(lun|mar|mer|gio|ven|sab|dom)\.?[ ,]+/i, "");
 
-  // Parse dd/mm/yy o dd-mm-yy (anche 2 cifre per l'anno)
   const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
   if (m) {
     const dd = parseInt(m[1], 10), mm = parseInt(m[2], 10) - 1, yy = parseInt(m[3], 10);
     const yyyy = yy < 100 ? 2000 + yy : yy;
     return new Date(yyyy, mm, dd);
   }
-
-  // Ultimo tentativo (può essere rischioso con formati locali)
   const dt = new Date(s);
   return isNaN(+dt) ? null : new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
 }
@@ -410,9 +433,7 @@ function textMatchRow(row, q, headers) {
   return false;
 }
 function applyFilters() {
-  // 1) base set
   let rows = showAll ? allRows.slice() : filterFromToday(allRows);
-  // 2) text search over current headers
   rows = rows.filter(r => textMatchRow(r, searchQuery, headersRef));
 
   const dateH2 = autoDetectDateHeader(headersRef);
@@ -422,20 +443,13 @@ function applyFilters() {
 }
 
 // --- Rendering -----------------------------------------------------------
-
-function totalPages() {
-  return Math.max(1, Math.ceil(rowsTeacher.length / pageSize));
-}
-function getPageSlice() {
-  const start = (currentPage - 1) * pageSize;
-  return rowsTeacher.slice(start, start + pageSize);
-}
+function totalPages() { return Math.max(1, Math.ceil(rowsForTeacher.length / pageSize)); }
+function getPageSlice() { const start = (currentPage - 1) * pageSize; return rowsForTeacher.slice(start, start + pageSize); }
 function updatePagerUI() {
   pageInfo.textContent = `${currentPage} / ${totalPages()}`;
   prevPage.disabled = currentPage <= 1;
   nextPage.disabled = currentPage >= totalPages();
 }
-
 function renderOptions(selectEl, options) {
   if (!selectEl) return;
   selectEl.innerHTML = options.map((o) => `<option value="${String(o)}">${String(o)}</option>`).join("");
@@ -454,7 +468,6 @@ function renderTable() {
     return;
   }
 
-  // Header
   const trh = document.createElement("tr");
   headers.forEach((h) => {
     const th = document.createElement("th");
@@ -463,7 +476,6 @@ function renderTable() {
   });
   tHead.appendChild(trh);
 
-  // Body
   const frag = document.createDocumentFragment();
   rows.forEach((row) => {
     const tr = document.createElement("tr");
@@ -476,36 +488,28 @@ function renderTable() {
   });
   tBody.appendChild(frag);
 
-  // Popola select (usate solo per auto-formattazione data/ora)
   renderOptions(dateColumnSelect, ["— nessuna —", ...headers]);
   renderOptions(timeColumnSelect, ["— nessuna —", ...headers]);
 
-  const total = allRows.length; const vis = rowsTeacher.length; rowsCount.textContent = showAll ? `${vis} lezioni totali` : `${vis} da oggi (${total} totali)`;
+  const total = allRows.length; const vis = rowsForTeacher.length; rowsCount.textContent = showAll ? `${vis} lezioni totali` : `${vis} da oggi (${total} totali)`;
   updatePagerUI();
 }
 
 // --- Eventi UI -----------------------------------------------------------
 dropZone?.addEventListener("click", () => fileInput?.click());
-$("#pickBtn")?.addEventListener("click", () => fileInput?.click());
+pickBtn?.addEventListener("click", () => fileInput?.click());
+fileInput?.addEventListener("change", (e) => { const f = e.target.files?.[0]; if (f) handleFile(f); });
 
-fileInput?.addEventListener("change", (e) => {
-  const f = e.target.files?.[0];
-  if (f) handleFile(f);
-});
-
-// drag & drop
 ["dragenter", "dragover"].forEach((ev) =>
   dropZone?.addEventListener(ev, (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); e.stopPropagation();
     dropZone.classList.add("dragover");
     setStatus("Rilascia per caricare…");
   })
 );
 ["dragleave", "dragend", "drop"].forEach((ev) =>
   dropZone?.addEventListener(ev, (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); e.stopPropagation();
     dropZone.classList.remove("dragover");
   })
 );
@@ -516,56 +520,54 @@ dropZone?.addEventListener("drop", (e) => {
 
 // Accessibilità tastiera
 dropZone?.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" || e.key === " ") {
-    e.preventDefault();
-    fileInput?.click();
-  }
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput?.click(); }
+});
+
+// Paginazione
+prevPage?.addEventListener("click", () => { if (currentPage > 1) { currentPage--; renderTable(); } });
+nextPage?.addEventListener("click", () => { if (currentPage < totalPages()) { currentPage++; renderTable(); } });
+pageSizeSel?.addEventListener("change", (e) => {
+  const v = parseInt(e.target.value, 10);
+  pageSize = [25,50,100].includes(v) ? v : 25;
+  currentPage = 1; renderTable();
+});
+
+// Search nel calendario
+searchInput?.addEventListener("input", (e) => {
+  searchQuery = String(e.target.value || ""); currentPage = 1; rowsForTeacher = applyFilters(); renderTable();
+});
+searchInput?.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { searchInput.value = ""; searchQuery = ""; currentPage = 1; rowsForTeacher = applyFilters(); renderTable(); }
+});
+
+// Toggle mostra da oggi / tutto
+showAllBtn?.addEventListener("click", () => {
+  showAll = !showAll;
+  showAllBtn.textContent = showAll ? "Mostra da oggi" : "Mostra tutto";
+  rowsForTeacher = applyFilters(); currentPage = 1; renderTable();
+});
+
+// Torna alla Home
+backHomeBtn?.addEventListener("click", () => {
+  calendarSection.style.display = "none";
+  homeSection.style.display = "grid";
+  pageTitle.textContent = "Calendario Docenti";
+  subLabel.textContent = "Seleziona un docente per vedere le sue lezioni";
+  location.hash = "";
+  setStatus("File caricato — scegli un docente", "ok");
 });
 
 // --- Init ---------------------------------------------------------------
 (function init() {
   setStatus("Carica un file Excel (.xlsx)…");
   if (showAllBtn) showAllBtn.textContent = showAll ? "Mostra da oggi" : "Mostra tutto";
+
+  // Se l'URL contiene #docente=, mostreremo il calendario dopo il caricamento del file
+  window.addEventListener("hashchange", () => {
+    const m = location.hash.match(/#docente=([^&]+)/);
+    if (m && workbook) {
+      const name = decodeURIComponent(m[1]);
+      openCalendarFor(name);
+    }
+  });
 })();
-
-// --- Paginazione: eventi -----------------------------------------------
-prevPage?.addEventListener("click", () => {
-  if (currentPage > 1) { currentPage--; renderTable(); }
-});
-nextPage?.addEventListener("click", () => {
-  if (currentPage < totalPages()) { currentPage++; renderTable(); }
-});
-pageSizeSel?.addEventListener("change", (e) => {
-  const v = parseInt(e.target.value, 10);
-  pageSize = [25,50,100].includes(v) ? v : 25;
-  currentPage = 1;
-  renderTable();
-});
-
-
-// --- Search ---------------------------------------------------------------
-searchInput?.addEventListener("input", (e) => {
-  searchQuery = String(e.target.value || "");
-  currentPage = 1;
-  rowsTeacher = applyFilters();
-  renderTable();
-});
-searchInput?.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") {
-    searchInput.value = "";
-    searchQuery = "";
-    currentPage = 1;
-    rowsTeacher = applyFilters();
-    renderTable();
-  }
-});
-
-
-// --- Toggle mostra da oggi / tutto --------------------------------------
-showAllBtn?.addEventListener("click", () => {
-  showAll = !showAll;
-  showAllBtn.textContent = showAll ? "Mostra da oggi" : "Mostra tutto";
-  rowsTeacher = applyFilters();
-  currentPage = 1;
-  renderTable();
-});

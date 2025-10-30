@@ -135,3 +135,16 @@ th:nth-child(1), td:nth-child(1) {
   .controls-inline.centered { flex-direction: column; align-items: stretch; }
   .input, .btn { width: 100%; }
 }
+
+/* Home: griglia docenti */
+.teacher-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  padding-top: 4px;
+}
+.teacher-grid .btn {
+  justify-content: flex-start;
+  font-weight: 600;
+  letter-spacing: .2px;
+}
