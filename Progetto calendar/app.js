@@ -31,6 +31,52 @@ const searchInput = $("#searchInput");
 const backHomeBtn = $("#backHomeBtn");
 
 
+/// Override facili: colori fissi, uno per corso (match esatto, case-insensitive)
+const COURSE_OVERRIDES = [
+  { test: /^frot2$/i,      base:"#fecaca", border:"#f87171" }, // rosso tenue
+  { test: /^cyse2$/i,      base:"#bbf7d0", border:"#22c55e" }, // verde
+  { test: /^dolc2$/i,      base:"#a5f3fc", border:"#06b6d4" }, // ciano/teal
+  { test: /^fust2$/i,      base:"#ddd6fe", border:"#8b5cf6" }, // viola
+  { test: /^agod2$/i,      base:"#fde68a", border:"#f59e0b" }, // arancio/ambra
+  { test: /^fust\s?a1$/i,  base:"#c7d2fe", border:"#6366f1" }, // indaco (spazio opzionale)
+  { test: /^cyse\s?a1$/i,  base:"#86efac", border:"#16a34a" }, // verde alternativo
+  { test: /^arti\s?a1$/i,  base:"#fbcfe8", border:"#ec4899" }, // rosa
+  { test: /^syam\s?a1$/i,  base:"#93c5fd", border:"#3b82f6" }, // blu
+];
+
+const COURSE_COLORS = new Map();  // cache, NON toccare
+
+const PALETTE = [
+  { base: "#93c5fd", border: "#3b82f6" }, // blu
+  { base: "#a5f3fc", border: "#06b6d4" }, // ciano
+  { base: "#bbf7d0", border: "#22c55e" }, // verde
+  { base: "#fde68a", border: "#f59e0b" }, // arancio
+  { base: "#fbcfe8", border: "#ec4899" }, // rosa
+  { base: "#ddd6fe", border: "#8b5cf6" }, // viola
+  { base: "#fecaca", border: "#f87171" }, // rosso tenue
+  { base: "#c7d2fe", border: "#6366f1" }, // indaco
+  { base: "#86efac", border: "#22c55e" }, // verde pastello
+  { base: "#e9d5ff", border: "#9333ea" }, // viola pastello
+];
+
+function hashStr(s) {
+  s = String(s || "");
+  let h = 2166136261 >>> 0;         // FNV-1a-like
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = (h * 16777619) >>> 0;
+  }
+  return h >>> 0;
+}
+
+function findCourseOverride(name) {
+  const n = String(name || "");
+  for (const o of COURSE_OVERRIDES ) {
+    if (!o || !o.test) continue;
+    try { if (o.test.test(n)) return o; } catch {}
+  }
+  return null;
+}
 // --- Colori per corso & legenda -----------------------------------------
 function hashHue(str) {
   str = String(str || "");
@@ -39,17 +85,39 @@ function hashHue(str) {
   return h % 360;
 }
 function courseColor(courseName) {
-  const hue = hashHue(courseName);
-  const sat = 70; // saturazione
-  const light = 55; // luminosità
-  return { 
-    hue, 
-    swatch: `hsl(${hue}deg ${sat}% ${light}%)`, 
-    bg: `hsla(${hue}, ${sat}%, ${Math.max(light-8,30)}%, 0.12)`, 
-    hover: `hsla(${hue}, ${sat}%, ${Math.max(light-8,30)}%, 0.22)`,
-    border: `hsla(${hue}, ${sat}%, ${Math.max(light-8,30)}%, 0.55)`
+  if (!courseName) {
+    return {
+      swatch: "#94a3b8",
+      bg: "rgba(148,163,184,0.12)",
+      hover: "rgba(148,163,184,0.22)",
+      border: "#64748b",
+    };
+  }
+
+  // cache
+  if (COURSE_COLORS.has(courseName)) return COURSE_COLORS.get(courseName);
+
+  // 1) override manuale (se definito)
+  const ov = findCourseOverride(courseName);
+  let colors;
+  if (ov) {
+    colors = { base: ov.base, border: ov.border };
+  } else {
+    // 2) fallback: palette con indice deterministico
+    const idx = hashStr(courseName) % PALETTE.length;
+    colors = PALETTE[idx];
+  }
+
+  const c = {
+    swatch: colors.border,
+    bg: colors.base + "40",    // ~25% alpha
+    hover: colors.base + "60", // ~38% alpha
+    border: colors.border,
   };
+  COURSE_COLORS.set(courseName, c);
+  return c;
 }
+
 
 function buildLegendFromRows(rows) {
   const byCourse = new Map();
