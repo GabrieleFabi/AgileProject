@@ -107,3 +107,4 @@ jobs:
           surge --project "${BASE_DIR}/Studenti" \
                 --domain "$SURGE_DOMAIN_STUD" \
                 --token "$SURGE_TOKEN"
+                
