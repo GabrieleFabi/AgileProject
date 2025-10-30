@@ -30,6 +30,59 @@ const showAllBtn = $("#showAllBtn");
 const searchInput = $("#searchInput");
 const backHomeBtn = $("#backHomeBtn");
 
+
+// --- Colori per corso & legenda -----------------------------------------
+function hashHue(str) {
+  str = String(str || "");
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  return h % 360;
+}
+function courseColor(courseName) {
+  const hue = hashHue(courseName);
+  const sat = 70; // saturazione
+  const light = 55; // luminosità
+  return { 
+    hue, 
+    swatch: `hsl(${hue}deg ${sat}% ${light}%)`, 
+    bg: `hsla(${hue}, ${sat}%, ${Math.max(light-8,30)}%, 0.12)`, 
+    hover: `hsla(${hue}, ${sat}%, ${Math.max(light-8,30)}%, 0.22)`,
+    border: `hsla(${hue}, ${sat}%, ${Math.max(light-8,30)}%, 0.55)`
+  };
+}
+
+function buildLegendFromRows(rows) {
+  const byCourse = new Map();
+  rows.forEach(r => {
+    const c = r["Corso"];
+    if (!c) return;
+    if (!byCourse.has(c)) byCourse.set(c, courseColor(c));
+  });
+  const legend = document.getElementById("legend");
+  if (!legend) return;
+  legend.innerHTML = "";
+  if (!byCourse.size) {
+    legend.innerHTML = "<span class='muted'>Legenda corsi: nessun corso visibile</span>";
+    return;
+  }
+  const frag = document.createDocumentFragment();
+  [...byCourse.keys()].sort((a,b) => a.localeCompare(b, "it")).forEach(corso => {
+    const c = byCourse.get(corso);
+    const chip = document.createElement("div");
+    chip.className = "legend-chip";
+    const sw = document.createElement("span");
+    sw.className = "legend-swatch";
+    sw.style.background = c.swatch;
+    chip.appendChild(sw);
+    const label = document.createElement("span");
+    label.textContent = corso;
+    chip.appendChild(label);
+    frag.appendChild(chip);
+  });
+  legend.appendChild(frag);
+}
+
+
 // Stato
 let workbook = null;
 let headersRef = [];
@@ -454,6 +507,7 @@ function renderOptions(selectEl, options) {
   if (!selectEl) return;
   selectEl.innerHTML = options.map((o) => `<option value="${String(o)}">${String(o)}</option>`).join("");
 }
+
 function renderTable() {
   const headers = headersRef.slice();
   const rows = getPageSlice();
@@ -465,6 +519,8 @@ function renderTable() {
     rowsCount.textContent = "—";
     renderOptions(dateColumnSelect, ["— nessuna —"]);
     renderOptions(timeColumnSelect, ["— nessuna —"]);
+    // aggiorna legenda (vuota)
+    buildLegendFromRows([]);
     return;
   }
 
@@ -479,6 +535,16 @@ function renderTable() {
   const frag = document.createDocumentFragment();
   rows.forEach((row) => {
     const tr = document.createElement("tr");
+    tr.className = "course-row";
+    const corso = row["Corso"];
+    if (corso) {
+      const c = courseColor(corso);
+      tr.dataset.course = corso;
+      tr.style.background = c.bg;
+      tr.style.borderLeft = `4px solid ${c.border}`;
+      tr.addEventListener("mouseenter", () => tr.style.background = c.hover);
+      tr.addEventListener("mouseleave", () => tr.style.background = c.bg);
+    }
     headers.forEach((h) => {
       const td = document.createElement("td");
       td.textContent = prettyValue(row[h], h);
@@ -493,6 +559,9 @@ function renderTable() {
 
   const total = allRows.length; const vis = rowsForTeacher.length; rowsCount.textContent = showAll ? `${vis} lezioni totali` : `${vis} da oggi (${total} totali)`;
   updatePagerUI();
+
+  // Legenda basata sulle righe VISIBILI nel calendario (rispetta filtri/mostra da oggi)
+  buildLegendFromRows(rowsForTeacher);
 }
 
 // --- Eventi UI -----------------------------------------------------------
