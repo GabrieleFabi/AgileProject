@@ -269,6 +269,34 @@ function excelToJson(ws) {
   return { headers, rows };
 }
 
+// Web App Apps Script (deve finire con /exec)
+const XLSX_ENDPOINT = 'https://script.google.com/a/macros/stud.itsaltoadriatico.it/s/AKfycbw5tBdMLyroEgcy9V5iS8E6GKXhBoecEeFAanWtdF-OFMlf-Y3VeRxjPthcXGtX57HvrA/exec';
+
+// Cache-buster giornaliero per evitare cache aggressive del browser/CDN
+const todayKey = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+};
+
+// Carica l’XLSX all’avvio
+async function loadCalendarFromScript() {
+  const url = `${XLSX_ENDPOINT}?v=${todayKey()}`;
+  const res = await fetch(url, { method: 'GET', credentials: 'include' }); // include cookie Google se l’utente è loggato
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const buf = await res.arrayBuffer();
+  // Se usi SheetJS:
+  const workbook = XLSX.read(new Uint8Array(buf), { type: 'array' });
+  // poi la tua logica esistente che popola la tabella…
+  renderFromWorkbook(workbook); // <— usa la tua funzione
+}
+
+// Esegui all’avvio (e gestisci eventuali errori con un messaggio UI)
+loadCalendarFromScript().catch(err => {
+  console.error('Errore caricamento XLSX:', err);
+  showStatus('Impossibile caricare il calendario. Verifica accesso con account scuola e riprova.'); // tua funzione
+});
+
+
 // Data/ora pretty
 const DATE_HEADER_RE = /^(data|date)$/i;
 const START_HEADER_RE = /^(dalle|ora ?inizio|inizio|start)$/i;
