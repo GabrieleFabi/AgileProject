@@ -336,6 +336,7 @@ function dropUnwantedColumns(headers, rows) {
     if (
       h === "giorno" ||
       h === "frot2" ||
+      h === "uf" ||                              // ← nascondi sempre la colonna UF
       /^(docente|insegnante|prof|teacher|formatore)$/.test(h)
     ) removeByName.add(headers[i]);
   });
@@ -529,7 +530,7 @@ function collectRowsForTeacher(displayName) {
     allRows.push(...processed);
   }
 
-  // Pulizia colonne
+  // Pulizia colonne (incluso nascondere UF)
   const cleaned = dropUnwantedColumns(headersRef || [], allRows);
   const dateH = autoDetectDateHeader(cleaned.headers);
   const startH = autoDetectStartHeader(cleaned.headers);
@@ -669,7 +670,7 @@ function renderTable() {
   const total = allRows.length; const vis = rowsForTeacher.length; rowsCount.textContent = showAll ? `${vis} lezioni totali` : `${vis} da oggi (${total} totali)`;
   updatePagerUI();
 
-  // Legenda basata sulle righe VISIBILI nel calendario (rispetta filtri/mostra da oggi)
+  // Legenda basata sulle RIGHE FILTRATE (visibili nel calendario)
   buildLegendFromRows(allRows);
 }
 
