@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Calendario Docenti</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <div class="title">
+          <div class="logo" id="courseLogo" aria-hidden="true">DOCENTE</div>
+          <div>
+            <h1 id="pageTitle">Calendario Docenti</h1>
+            <div class="sub">
+              <span id="subLabel">Seleziona un docente per vedere le sue lezioni</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="badge" id="statusBadge">Carica un file Excel (.xlsx)…</div>
+      </header>
+
+      <!-- HOME: upload + lista docenti -->
+      <section id="homeSection" class="uibox">
+        <div class="card">
+          <div class="inner controls">
+            <div id="dropZone" class="dropzone" tabindex="0" role="button" aria-label="Trascina qui il file Excel o clicca per selezionarlo">
+              <div>
+                <strong>Trascina qui</strong> il file <code>.xlsx</code><br />
+                <span class="muted">Oppure</span>
+                <button id="pickBtn" type="button" class="btn">Scegli dal computer</button>
+              </div>
+              <input id="fileInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden />
+            </div>
+            <div class="note">
+              Il file deve essere lo stesso usato per gli studenti. La home estrarrà automaticamente l’elenco unico dei docenti.
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="inner">
+            <div class="controls-inline centered" style="margin-bottom:8px">
+              <input id="teacherSearch" type="search" class="input" placeholder="Cerca docente..." aria-label="Cerca docente" />
+              <button id="resetTeacherSearch" class="btn" type="button">Azzera</button>
+            </div>
+            <div id="teacherList" class="teacher-grid"></div>
+            <div class="footer"><span class="muted" id="teacherCount">—</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CALENDARIO: identico a versione studenti ma filtrato per docente -->
+      <section id="calendarSection" class="uibox" style="display:none;">
+        <!-- UI nascoste richieste da app.js (solo per funzioni di formattazione) -->
+        <div class="hidden-ui">
+          <select id="dateColumnSelect"></select>
+          <select id="timeColumnSelect"></select>
+        </div>
+
+        <div class="card">
+          <div class="inner controls-split">
+            <div class="controls-left">
+              <div class="controls-inline centered">
+                <input id="searchInput" type="search" class="input" placeholder="Cerca nelle lezioni…" aria-label="Cerca lezioni" />
+                <button id="showAllBtn" class="btn" type="button" title="Mostra tutto"></button>
+                <button id="backHomeBtn" class="btn" type="button" title="Torna alla Home">⬅️Torna alla Home</button>
+              </div>
+            </div>
+            <div class="controls-right">
+              <div class="legend" id="legend" aria-label="Legenda corsi"></div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table id="dataTable" aria-live="polite">
+              <thead></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="footer">
+            <div id="rowsCount">—</div>
+            <div id="paginationControls" class="pager">
+              <button id="prevPage" class="btn" type="button" aria-label="Pagina precedente">←</button>
+              <span id="pageInfo" class="muted" style="min-width:110px; text-align:center;">—</span>
+              <button id="nextPage" class="btn" type="button" aria-label="Pagina successiva">→</button>
+              <span class="muted" style="margin-left:8px;">/ per pagina</span>
+              <select id="pageSize" class="sel">
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
