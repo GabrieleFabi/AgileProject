@@ -1,0 +1,88 @@
+name: Deploy Docenti & Studenti (shared XLSX)
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # ogni 5 minuti (solo per test)
+  push:
+    paths:
+      - 'Docenti/**'
+      - 'Studenti/**'
+      - '.github/workflows/surge-shared-xlsx.yml'
+  workflow_dispatch:
+
+# Evita run sovrapposte se il cron/push si accavallano
+concurrency:
+  group: surge-shared-xlsx
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    # Permessi minimi
+    permissions:
+      contents: read
+
+    # ✅ Secrets disponibili per tutte le steps
+    env:
+      SURGE_TOKEN:            ${{ secrets.SURGE_TOKEN }}
+      SURGE_DOMAIN_DOC:       ${{ secrets.SURGE_DOMAIN_DOC }}
+      SURGE_DOMAIN_STUD:      ${{ secrets.SURGE_DOMAIN_STUD }}
+      APPS_SCRIPT_URL_SHARED: ${{ secrets.APPS_SCRIPT_URL_SHARED }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ✅ Validiamo che TUTTI i secret ci siano e che l'URL abbia il formato giusto
+      - name: Validate secrets and web app URL
+        run: |
+          fail=0
+          for var in SURGE_TOKEN SURGE_DOMAIN_DOC SURGE_DOMAIN_STUD APPS_SCRIPT_URL_SHARED; do
+            if [ -z "${!var}" ]; then
+              echo "::error title=Missing secret::${var} is EMPTY"
+              fail=1
+            fi
+          done
+          if [ $fail -ne 0 ]; then exit 1; fi
+
+          case "$APPS_SCRIPT_URL_SHARED" in
+            https://script.google.com/*/exec*) echo "Web App URL format OK";;
+            *) echo "::error title=Bad URL::APPS_SCRIPT_URL_SHARED must start with https://script.google.com and end with /exec"; exit 1;;
+          esac
+
+      - name: Install Surge
+        run: npm i -g surge@latest
+
+      - name: Download shared calendario.xlsx
+        run: |
+          mkdir -p Data
+          # cache-busting con run id per evitare proxy/cache intermedie
+          curl --fail --show-error --location \
+               -H "Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" \
+               "${APPS_SCRIPT_URL_SHARED}?t=${GITHUB_RUN_ID}" \
+               -o Data/calendario.xlsx
+          test -s Data/calendario.xlsx || (echo "XLSX missing/empty" && exit 1)
+
+      - name: Copy XLSX into Docenti & Studenti
+        run: |
+          mkdir -p "Docenti/data" "Studenti/data"
+          cp Data/calendario.xlsx "Docenti/data/calendario.xlsx"
+          cp Data/calendario.xlsx "Studenti/data/calendario.xlsx"
+
+      - name: Deploy Docenti
+        run: |
+          surge --project "Docenti" \
+                --domain "$SURGE_DOMAIN_DOC" \
+                --token "$SURGE_TOKEN"
+
+      - name: Deploy Studenti
+        run: |
+          surge --project "Studenti" \
+                --domain "$SURGE_DOMAIN_STUD" \
+                --token "$SURGE_TOKEN"

@@ -1,0 +1,15 @@
+# Ignora file temporanei di Word
+~$*.docx
+~*.tmp
+
+# Ignora anche i file di backup di Word (opzionale)
+*.tmp
+*.bak
+*.lock
+
+# Ignora cartelle di sistema (opzionale)
+.DS_Store
+Thumbs.db
+
+#Ignora secrets.txt
+secrets.txt
