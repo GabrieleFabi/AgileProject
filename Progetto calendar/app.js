@@ -17,6 +17,8 @@ const prevPage = $("#prevPage");
 const nextPage = $("#nextPage");
 const pageInfo = $("#pageInfo");
 const pageSizeSel = $("#pageSize");
+const showAllBtn = $("#showAllBtn");
+const searchInput = $("#searchInput");
 
 // Stato
 let workbook = null;
@@ -26,6 +28,11 @@ let rowsTeacher = [];
 // Paginazione
 let currentPage = 1;
 let pageSize = 25; // default
+
+// Filtri (devono essere globali e definiti prima di init)
+let showAll = false;   // default: mostra da OGGI in poi
+let allRows = [];      // dataset completo
+let searchQuery = "";  // testo di ricerca
 
 // --- Utility -------------------------------------------------------------
 function setStatus(text, tone = "info") {
@@ -156,11 +163,17 @@ function dropUnwantedColumns(headers, rows) {
   const norm = headers.map(normalizeHeaderName);
 
   // colonne candidate da rimuovere
-const removeByName = new Set();
-norm.forEach((h, i) => {
-  // rimuovi "giorno", "frot2" e "docente" sempre
-  if (["giorno", "frot2", "docente"].includes(h)) removeByName.add(headers[i]);
-});
+  const removeByName = new Set();
+  norm.forEach((h, i) => {
+    // rimuovi "giorno", "frot2" e la colonna docente (sinonimi)
+    if (
+      h === "giorno" ||
+      h === "frot2" ||
+      /^(docente|insegnante|prof|teacher|formatore)$/.test(h)
+    ) {
+      removeByName.add(headers[i]);
+    }
+  });
 
   // rimuovi colonne completamente vuote
   const isColEmpty = (hdr) => rows.every((r) => {
@@ -194,6 +207,11 @@ function autoDetectTeacherHeader(headers) {
   return headers.find((h) => TEACHER_HEADER_RE.test(String(h).trim())) || null;
 }
 
+
+function normalizeCourseName(name) {
+  // "Fust A1" -> "Fust1" (spazio opzionale, case-insensitive)
+  return String(name || "").replace(/\s*A1\b/i, "1");
+}
 // --- Caricamento da file locale -----------------------------------------
 async function handleFile(file) {
   try {
@@ -223,9 +241,8 @@ function processWorkbook() {
     const matches = rows.filter((r) => String(r[teacherH] || "").trim().toLowerCase() === teacher);
     if (!matches.length) continue;
 
-    // Salva subito il nome del foglio nella colonna visibile "Corso"
+    // Scrivi SUBITO la colonna visibile "Corso" = nome del foglio (normalizzato)
     matches.forEach((r) => (r["Corso"] = normalizeCourseName(sheetName)));
-
 
     // Per mobile: se presenti Dalle + Alle, crea colonna "Orario" subito dopo Data
     const isMobile = window.innerWidth <= 520;
@@ -233,7 +250,6 @@ function processWorkbook() {
     let finalHeaders = headers.slice();
     // Assicura che l'header "Corso" sia presente
     if (!finalHeaders.includes("Corso")) finalHeaders.push("Corso");
-
 
     if (isMobile) {
       const startH = autoDetectStartHeader(headers);
@@ -266,15 +282,60 @@ function processWorkbook() {
   const cleaned = dropUnwantedColumns(headersForRender || [], collected);
 
   headersRef = cleaned.headers;
-  rowsTeacher = cleaned.rows;
+  allRows = cleaned.rows;
+  rowsTeacher = applyFilters();
   currentPage = 1;
   renderTable();
+
   setStatus(rowsTeacher.length ? "Pronto" : "Nessuna lezione trovata", rowsTeacher.length ? "ok" : "err");
 }
 
-function normalizeCourseName(name) {
-  // "Fust A1" -> "Fust1" (spazio opzionale, case-insensitive)
-  return String(name || "").replace(/\s*A1\b/i, "1");
+
+function startOfToday() {
+  const d = new Date();
+  d.setHours(0,0,0,0);
+  return d;
+}
+function rowDate(row, dateHeader) {
+  const v = row?.[dateHeader];
+  if (v instanceof Date) return new Date(v.getFullYear(), v.getMonth(), v.getDate());
+  const s = String(v || "").trim();
+  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (m) {
+    const dd = parseInt(m[1],10), mm = parseInt(m[2],10)-1, yy = parseInt(m[3],10);
+    const yyyy = yy < 100 ? 2000 + yy : yy;
+    return new Date(yyyy, mm, dd);
+  }
+  const dt = new Date(s);
+  return isNaN(+dt) ? null : new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+}
+function filterFromToday(rows) {
+  const header = autoDetectDateHeader(headersRef) || (rows[0] && autoDetectDateHeader(Object.keys(rows[0])));
+  if (!header) return rows;
+  const today0 = startOfToday().getTime();
+  return rows.filter(r => {
+    const d = rowDate(r, header);
+    return d ? d.getTime() >= today0 : true;
+  });
+}
+
+function textMatchRow(row, q, headers) {
+  if (!q) return true;
+  const needle = q.toLowerCase();
+  for (const h of headers) {
+    const v = row[h];
+    if (v == null) continue;
+    const s = (v instanceof Date) ? prettyValue(v, h) : String(v);
+    if (String(s).toLowerCase().includes(needle)) return true;
+  }
+  return false;
+}
+function applyFilters() {
+  // 1) base set
+  let rows = showAll ? allRows.slice() : filterFromToday(allRows);
+  // 2) text search over current headers
+  rows = rows.filter(r => textMatchRow(r, searchQuery, headersRef));
+  return rows;
 }
 
 // --- Rendering -----------------------------------------------------------
@@ -336,7 +397,7 @@ function renderTable() {
   renderOptions(dateColumnSelect, ["— nessuna —", ...headers]);
   renderOptions(timeColumnSelect, ["— nessuna —", ...headers]);
 
-  rowsCount.textContent = `${rowsTeacher.length} lezioni totali`;
+  const total = allRows.length; const vis = rowsTeacher.length; rowsCount.textContent = showAll ? `${vis} lezioni totali` : `${vis} da oggi (${total} totali)`;
   updatePagerUI();
 }
 
@@ -381,6 +442,7 @@ dropZone?.addEventListener("keydown", (e) => {
 // --- Init ---------------------------------------------------------------
 (function init() {
   setStatus("Carica un file Excel (.xlsx)…");
+  if (showAllBtn) showAllBtn.textContent = showAll ? "Mostra da oggi" : "Mostra tutto";
 })();
 
 // --- Paginazione: eventi -----------------------------------------------
@@ -393,6 +455,34 @@ nextPage?.addEventListener("click", () => {
 pageSizeSel?.addEventListener("change", (e) => {
   const v = parseInt(e.target.value, 10);
   pageSize = [25,50,100].includes(v) ? v : 25;
+  currentPage = 1;
+  renderTable();
+});
+
+
+// --- Search ---------------------------------------------------------------
+searchInput?.addEventListener("input", (e) => {
+  searchQuery = String(e.target.value || "");
+  currentPage = 1;
+  rowsTeacher = applyFilters();
+  renderTable();
+});
+searchInput?.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    searchInput.value = "";
+    searchQuery = "";
+    currentPage = 1;
+    rowsTeacher = applyFilters();
+    renderTable();
+  }
+});
+
+
+// --- Toggle mostra da oggi / tutto --------------------------------------
+showAllBtn?.addEventListener("click", () => {
+  showAll = !showAll;
+  showAllBtn.textContent = showAll ? "Mostra da oggi" : "Mostra tutto";
+  rowsTeacher = applyFilters();
   currentPage = 1;
   renderTable();
 });
