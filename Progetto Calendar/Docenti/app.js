@@ -63,29 +63,54 @@ const PALETTE = [
 // Caricamento automatico XLSX locale (per Surge)
 // ==========================
 
-// Percorso locale al file Excel (stesso nome/stesso posto)
-const DEFAULT_XLSX_URL = 'data/calendario.xlsx?d=' + new Date().toISOString().slice(0,10);
+// Utility: base64 -> ArrayBuffer
+function b64ToArrayBuffer(b64) {
+  const binary = atob(b64);
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
 
-// Carica e parsa l'Excel locale, poi costruisce la UI docenti
+// Carica e parsa l'Excel (GAS JSON b64 o file statico .xlsx)
 async function loadLocalCalendar() {
   try {
-    const IS_REMOTE = /^https?:\/\//i.test(DEFAULT_XLSX_URL.replace(/\?.*$/, ""));
-    const LABEL_SRC = IS_REMOTE ? "(web app)" : "(locale)";
-    setStatus(`Calendario caricato ${LABEL_SRC}`, "ok");
-    const res = await fetch(DEFAULT_XLSX_URL, { cache: "no-store" });
+    const url = DEFAULT_XLSX_URL;
+    const isGAS = /script\.google\.com\/macros\/s\//i.test(url);
+
+    setStatus(`Carico calendario ${isGAS ? "(web app GAS)" : "(statico)" }…`);
+
+    const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error("HTTP " + res.status);
-    const buf = await res.arrayBuffer();
+
+    let buf;
+    if (isGAS) {
+      // La web app GAS risponde con { b64: "..." }
+      const data = await res.json().catch(() => ({}));
+      if (!data || !data.b64) {
+        // Se non c'è b64, mostro l'eventuale testo per capire l'errore
+        const txt = await res.text().catch(() => "");
+        throw new Error("Risposta GAS senza b64. Dettagli: " + (txt || "nessun corpo"));
+      }
+      buf = b64ToArrayBuffer(data.b64);
+    } else {
+      // File statico .xlsx
+      buf = await res.arrayBuffer();
+    }
+
+    // Leggi workbook con SheetJS
     workbook = XLSX.read(buf, { type: "array" });
 
-    // Popola subito la lista docenti dalla variabile globale "workbook"
+    // Costruisci UI
     buildTeacherList();
 
-    setStatus("Calendario caricato (locale)", "ok");
+    setStatus(`Calendario caricato ${isGAS ? "(web app GAS)" : "(statico)"}`, "ok");
   } catch (err) {
-    console.error("Errore nel caricamento calendario locale:", err);
-    setStatus("Errore nel caricamento del calendario locale.", "err");
+    console.error("Errore nel caricamento calendario:", err);
+    setStatus("Errore nel caricamento del calendario.", "err");
   }
 }
+
 
 // Avvio automatico all’apertura pagina
 window.addEventListener("DOMContentLoaded", loadLocalCalendar);
