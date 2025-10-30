@@ -10,3 +10,6 @@
 # Ignora cartelle di sistema (opzionale)
 .DS_Store
 Thumbs.db
+
+#Ignora secrets.txt
+secrets.txt
