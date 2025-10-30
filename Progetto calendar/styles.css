@@ -92,6 +92,10 @@ th:nth-child(1), td:nth-child(1) {
   line-height: 1.2;
 }
 
+#showAllBtn, #backHomeBtn {
+  white-space: nowrap;
+}
+
 .footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; color: var(--muted); font-size: 12px; }
 
 @media (max-width: 520px) {
