@@ -2,7 +2,7 @@ name: Deploy Docenti & Studenti (shared XLSX)
 
 on:
   schedule:
-    - cron: '0 */4 * * *'   # ogni 4 ore (UTC)
+    - cron: '*/5 * * * *'   # ogni 5 minuti (solo per test)
   push:
     paths:
       - 'Docenti/**'
