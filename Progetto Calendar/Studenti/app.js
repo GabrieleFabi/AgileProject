@@ -20,7 +20,8 @@ const courseSection = $("#courseSection");
 // Caricamento automatico XLSX locale (per Surge)
 // ==========================
 
-const DEFAULT_XLSX_URL = 'data/calendario.xlsx?d=' + new Date().toISOString().slice(0,10);
+const DEFAULT_XLSX_URL = 'https://script.google.com/macros/s/AKfycbxpdCfGzZEKXu_t5dBYQ__QTck5EFD_DSVP0mlCsemUFCG9dRTZl3_JBwWOxwSoAkrQpw/exec?d=' + new Date().toISOString().slice(0,10);
+
 
 async function loadLocalCalendar() {
   try {
