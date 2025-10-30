@@ -62,14 +62,33 @@ jobs:
       - name: Install Surge
         run: npm i -g surge@latest
 
-      - name: Download shared calendario.xlsx
+      - name: Download & decode shared calendario.xlsx (JSON base64 -> XLSX)
         run: |
           mkdir -p "${BASE_DIR}/Data"
+          # Scarica JSON dalla Web App GAS
           curl --fail --show-error --location \
-               -H "Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" \
                "${APPS_SCRIPT_URL_SHARED}?t=${GITHUB_RUN_ID}" \
-               -o "${BASE_DIR}/Data/calendario.xlsx"
-          test -s "${BASE_DIR}/Data/calendario.xlsx" || (echo "XLSX missing/empty" && exit 1)
+               -o /tmp/cal.json
+
+          # Estrai il campo .b64 e decodifica in binario
+          B64=$(jq -r '.b64 // empty' /tmp/cal.json)
+          if [ -z "$B64" ]; then
+            echo "::error title=GAS error::Risposta senza .b64"
+            echo "Body ricevuto:"
+            cat /tmp/cal.json
+            exit 1
+          fi
+
+          echo "$B64" | base64 -d > "${BASE_DIR}/Data/calendario.xlsx" || {
+            echo "::error title=Decode failed::Impossibile decodificare base64"
+            exit 1
+          }
+
+          # Sanity check: dimensione minima 1KB
+          if [ ! -s "${BASE_DIR}/Data/calendario.xlsx" ] || [ $(stat -c%s "${BASE_DIR}/Data/calendario.xlsx") -lt 1024 ]; then
+            echo "::error title=File too small::XLSX vuoto o troppo piccolo"
+            exit 1
+          fi
 
       - name: Copy XLSX into Docenti & Studenti
         run: |
