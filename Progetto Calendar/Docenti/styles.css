@@ -34,6 +34,16 @@ header {
   letter-spacing: .5px;
 }
 
+/* Il logo è cliccabile solo nella vista calendario */
+.logo.is-clickable {
+  cursor: pointer;
+  transition: transform 0.15s, filter 0.15s;
+}
+.logo.is-clickable:hover {
+  transform: scale(1.05);
+  filter: brightness(1.1);
+}
+
 h1 { font-size: clamp(20px, 2.4vw, 28px); margin: 0; }
 .sub { color: var(--muted); font-size: 14px; }
 
@@ -147,6 +157,19 @@ th:nth-child(1), td:nth-child(1) {
   border-radius: 10px;
   background: var(--surface);
 }
+
+/* Evidenzia barra di ricerca docenti */
+.input.highlight-input {
+  border: 2px solid rgba(59,130,246,0.4);
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.08);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.input.highlight-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.25);
+  outline: none;
+}
+
 @media (max-width: 520px) {
   .controls-inline.centered { flex-direction: column; align-items: stretch; }
   .input, .btn { width: 100%; }

@@ -472,6 +472,29 @@ function titleCaseName(s) {
   return s.toLowerCase().split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
 
+function isGarbageTeacherName(s) {
+  const t = String(s || "").trim();
+  if (!t) return true;
+
+  // pattern di errore/debug comuni
+  if (/[!#?]{2,}/.test(t)) return true; // es. "!!err", "###"
+  if (/(^|[\s_-])(err|error|errore|modulo|sheet|test|dummy)([\s_-]|$)/i.test(t)) return true;
+
+  // deve avere almeno Nome Cognome con lettere
+  const words = t.split(/\s+/).filter(Boolean);
+  if (words.length < 2) return true;
+
+  // almeno 4 lettere totali
+  const letters = (t.match(/[a-zà-ù]/gi) || []).length;
+  if (letters < 4) return true;
+
+  // ogni parola deve contenere almeno una lettera
+  if (words.some(w => !/[a-zà-ù]/i.test(w))) return true;
+
+  return false;
+}
+
+
 function buildTeacherList() {
   if (!workbook) return;
   const unique = new Map(); // key lower -> display
@@ -488,8 +511,8 @@ function buildTeacherList() {
     for (const r of rows) {
       const raw = String(r[tHeader] || "").trim().replace(/\s+/g, " ");
       if (!raw) continue;
-      // deve avere almeno nome + cognome
-      if (raw.split(" ").length < 2) continue;
+      if (isGarbageTeacherName(raw)) continue;           // ⟵ nuovo filtro
+
       const key = raw.toLowerCase();
       if (!unique.has(key)) unique.set(key, titleCaseName(raw));
     }
@@ -804,16 +827,53 @@ showAllBtn?.addEventListener("click", () => {
   renderTable(); // aggiorna anche il testo del bottone
 });
 
-// Torna alla Home
-backHomeBtn?.addEventListener("click", () => {
+// Clic sul logo DOCENTE: attivo solo nella vista calendario
+const courseLogo = $("#courseLogo");
+
+function enableLogoAsHome(enable) {
+  if (!courseLogo) return;
+  if (enable) {
+    courseLogo.classList.add("is-clickable");
+    courseLogo.addEventListener("click", goHomeFromLogo);
+  } else {
+    courseLogo.classList.remove("is-clickable");
+    courseLogo.removeEventListener("click", goHomeFromLogo);
+  }
+}
+
+function goHomeFromLogo() {
   calendarSection.style.display = "none";
   homeSection.style.display = "grid";
-  scrollToTop(); // torna su in cima anche nella lista docenti
+  scrollToTop();
   pageTitle.textContent = "Calendario Docenti";
   subLabel.textContent = "Seleziona un docente per vedere le sue lezioni";
   location.hash = "";
   setStatus("File caricato — scegli un docente", "ok");
-});
+  enableLogoAsHome(false); // disabilita di nuovo il click
+}
+
+// Attiva / disattiva dinamicamente
+// Dopo openCalendarFor:
+const _openCalendarFor = openCalendarFor;
+openCalendarFor = function(displayName) {
+  _openCalendarFor(displayName);
+  enableLogoAsHome(true); // logo attivo solo dentro il calendario
+};
+
+// Dopo il tasto "Torna alla Home"
+const _backHomeHandler = () => {
+  calendarSection.style.display = "none";
+  homeSection.style.display = "grid";
+  scrollToTop();
+  pageTitle.textContent = "Calendario Docenti";
+  subLabel.textContent = "Seleziona un docente per vedere le sue lezioni";
+  location.hash = "";
+  setStatus("File caricato — scegli un docente", "ok");
+  enableLogoAsHome(false); // disattiva quando torni alla home
+};
+backHomeBtn?.removeEventListener("click", _backHomeHandler);
+backHomeBtn?.addEventListener("click", _backHomeHandler);
+
 
 // --- Init ---------------------------------------------------------------
 (function init() {
