@@ -59,24 +59,17 @@ const PALETTE = [
   { base: "#e9d5ff", border: "#9333ea" }, // viola pastello
 ];
 
-const DEFAULT_XLSX_URL = 'data/calendario.xlsx?d=' + new Date().toISOString().slice(0,10);
+const DEFAULT_XLSX_URL = 'data/calendario.xlsx';
 
 
-// --- Helpers per scaricare XLSX da Web App (JSON b64) o file statico ---
 async function fetchXlsxArrayBuffer(url) {
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-  const ct = (res.headers.get("Content-Type") || "").toLowerCase();
-
-  // Caso 1: Web App GAS → JSON base64 { b64: "..." }
-  if (ct.includes("application/json")) {
-    const j = await res.json();
-    if (!j || !j.b64) throw new Error("Risposta JSON senza campo b64");
-    return base64ToArrayBuffer(j.b64);
-  }
-
-  // Caso 2: file statico .xlsx (Surge)
+  const res = await fetch(url, {
+    // evita cache del browser
+    cache: 'no-store',
+    // alcuni proxy/CDN rispettano anche questi header di richiesta
+    headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+  });
+  if (!res.ok) throw new Error('HTTP '+res.status);
   return await res.arrayBuffer();
 }
 
