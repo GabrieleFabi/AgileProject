@@ -181,6 +181,52 @@ let showAll = false;
 let searchQuery = "";
 let selectedCourses = new Set();
 
+// --- Progress Overlay (bloccante) ------------------------------------------
+const overlayEl = document.getElementById("progressOverlay");
+const fillEl = document.getElementById("progressFill");
+const titleEl = document.getElementById("progressTitle");
+const pctEl = document.getElementById("progressPct");
+const countEl = document.getElementById("progressCount");
+
+/* NEW: assicurati che all'avvio sia nascosto */
+if (overlayEl) overlayEl.hidden = true;
+
+let _progressTotal = 0;
+let _progressDone = 0;
+
+function showProgress({ title = "Elaborazione…", total = 0 } = {}) {
+  _progressTotal = Math.max(0, total);
+  _progressDone = 0;
+  if (titleEl) titleEl.textContent = title;
+  updateProgress(0);
+  if (overlayEl) {
+    overlayEl.hidden = false;
+    // blocca scroll sotto
+    document.documentElement.style.overflow = "hidden";
+  }
+}
+
+function updateProgress(done, extraText) {
+  _progressDone = Math.min(Math.max(0, done), _progressTotal || done);
+  const pct = _progressTotal > 0 ? Math.round((_progressDone / _progressTotal) * 100) : 0;
+  if (fillEl) fillEl.style.width = `${pct}%`;
+  if (pctEl) pctEl.textContent = `${pct}%`;
+  if (countEl) countEl.textContent = `${_progressDone} / ${_progressTotal || "?"}`;
+  if (extraText && titleEl) titleEl.textContent = extraText;
+}
+
+function hideProgress(finalMessage) {
+  if (finalMessage && titleEl) titleEl.textContent = finalMessage;
+  if (overlayEl) {
+    // piccola pausa per far vedere il 100%
+    setTimeout(() => {
+      overlayEl.hidden = true;
+      document.documentElement.style.overflow = "";
+    }, 250);
+  }
+}
+
+
 // --- Utility UI -------------------------------------------------------------
 function setStatus(text, tone = "info") {
   statusBadge.textContent = text;
@@ -781,20 +827,38 @@ document.getElementById("btnPushEvents")?.addEventListener("click", async () => 
 
     if (!confirm(`Creare ${events.length} eventi su Calendar (dedup attivo)?`)) return;
 
-    let inserted=0, skipped=0, failed=0;
+    // === PROGRESS: avvia overlay ===
+    showProgress({ title: "Aggiungo eventi al tuo Google Calendar…", total: events.length });
+
+    let inserted=0, skipped=0, failed=0, i=0;
     for (const ev of events){
       const uid = ev.extendedProperties.private.itsaa_uid;
       try{
-        if (await findByPrivateProp("primary","itsaa_uid", uid)) { skipped++; continue; }
-        await gapi.client.calendar.events.insert({ calendarId:"primary", resource: ev });
-        inserted++; await delay(40);
+        // Messaggio dinamico
+        updateProgress(i, `Verifica duplicati… (${i+1}/${events.length})`);
+
+        if (await findByPrivateProp("primary","itsaa_uid", uid)) { 
+          skipped++; 
+        } else {
+          updateProgress(i, `Creo evento… (${i+1}/${events.length})`);
+          await gapi.client.calendar.events.insert({ calendarId:"primary", resource: ev });
+          inserted++;
+          await delay(40);
+        }
       } catch(e){ failed++; }
+      i++;
+      updateProgress(i);
     }
+
+    hideProgress("Completato.");
     setStatus(`Inseriti ${inserted}, già presenti ${skipped}, errori ${failed}.`, "ok");
   } catch(e){
-    console.error(e); setStatus("Errore durante la creazione.", "err");
+    console.error(e);
+    hideProgress("Errore durante la creazione.");
+    setStatus("Errore durante la creazione.", "err");
   } finally { updateGcalUi(); }
 });
+
 
 // Elimina eventi (UID → fallback titolo)
 document.getElementById("btnDeleteEvents")?.addEventListener("click", async () => {
@@ -819,7 +883,7 @@ document.getElementById("btnDeleteEvents")?.addEventListener("click", async () =
       pageToken = resp.result.nextPageToken || null;
     } while(pageToken);
 
-    // 2) fallback per titolo (sia "Lezione — XYZ" sia "(Aula) – Modulo")
+    // 2) fallback per titolo
     if (!candidates.length){
       pageToken=null;
       do{
@@ -837,15 +901,32 @@ document.getElementById("btnDeleteEvents")?.addEventListener("click", async () =
       } while(pageToken);
     }
 
-    if (!candidates.length) return setStatus("Nessun evento trovabile da eliminare.", "ok");
-
-    let deleted=0, failed=0;
-    for (const ev of candidates){
-      try{ await gapi.client.calendar.events.delete({ calendarId, eventId: ev.id }); deleted++; await delay(30); }
-      catch(e){ failed++; }
+    if (!candidates.length) {
+      setStatus("Nessun evento trovabile da eliminare.", "ok");
+      return;
     }
+
+    // === PROGRESS: avvia overlay ===
+    showProgress({ title: "Elimino eventi dal tuo Google Calendar…", total: candidates.length });
+
+    let deleted=0, failed=0, i=0;
+    for (const ev of candidates){
+      try{
+        updateProgress(i, `Elimino… (${i+1}/${candidates.length})`);
+        await gapi.client.calendar.events.delete({ calendarId, eventId: ev.id });
+        deleted++;
+        await delay(30);
+      } catch(e){ failed++; }
+      i++;
+      updateProgress(i);
+    }
+
+    hideProgress("Completato.");
     setStatus(`Eliminati ${deleted} eventi. Errori ${failed}.`, "ok");
   } catch(e){
-    console.error(e); setStatus("Errore durante la rimozione.", "err");
+    console.error(e);
+    hideProgress("Errore durante l'eliminazione.");
+    setStatus("Errore durante la rimozione.", "err");
   }
 });
+

@@ -11,6 +11,26 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   </head>
   <body>
+
+      <!-- Overlay di progresso (bloccante) -->
+      <div id="progressOverlay" class="progress-overlay" hidden aria-live="polite" role="dialog" aria-modal="true">
+        <div class="progress-card" role="document">
+          <div class="progress-spinner" aria-hidden="true"></div>
+          <h3 id="progressTitle" class="progress-title">Sincronizzazione calendario…</h3>
+
+          <div class="progress-bar" aria-label="Avanzamento">
+            <div id="progressFill" class="progress-fill" style="width:0%"></div>
+          </div>
+
+          <div class="progress-meta">
+            <span id="progressPct">0%</span>
+            <span class="sep">•</span>
+            <span id="progressCount">0 / 0</span>
+          </div>
+
+          <p class="progress-hint">Non chiudere questa pagina finché l’operazione non è terminata.</p>
+        </div>
+  </div>
     <div class="wrap">
       <header>
         <div class="title">
