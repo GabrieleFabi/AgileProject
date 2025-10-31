@@ -1217,9 +1217,17 @@ function buildEventsFromRows(headers, rows) {
     // UID stabile per dedup: modulo + data + start
     const uid = keyForRowPenultimate(r, dateH, startH, moduleH || "");
 
-    // summary
+    // summary: "(aula) – (modulo)" (aula facoltativa)
     const mod = moduleH ? String(r[moduleH] ?? "").trim() : "";
-    let summary = mod ? `Lezione — ${mod}` : "Lezione";
+    const LOCATION_HEADER_RE = /^(aula|sede|luogo|location)$/i;
+    const locationH = headers.find(h => LOCATION_HEADER_RE.test(String(h)));
+    const aula = locationH ? String(r[locationH] || "").trim() : "";
+
+    let summary = "";
+    if (aula && mod) summary = `${aula} – ${mod}`;
+    else if (aula) summary = aula;
+    else if (mod) summary = mod;
+    else summary = "Lezione";
 
     const event = {
       summary,
