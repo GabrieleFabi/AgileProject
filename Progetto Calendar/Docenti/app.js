@@ -31,33 +31,22 @@ const searchInput = $("#searchInput");
 const backHomeBtn = $("#backHomeBtn");
 
 
-/// Override facili: colori fissi, uno per corso (match esatto, case-insensitive)
-const COURSE_OVERRIDES = [
-  { test: /^frot2$/i,      base:"#fecaca", border:"#f87171" }, // rosso tenue
-  { test: /^cyse2$/i,      base:"#bbf7d0", border:"#22c55e" }, // verde
-  { test: /^dolc2$/i,      base:"#a5f3fc", border:"#06b6d4" }, // ciano/teal
-  { test: /^fust2$/i,      base:"#ddd6fe", border:"#8b5cf6" }, // viola
-  { test: /^agod2$/i,      base:"#fde68a", border:"#f59e0b" }, // arancio/ambra
-  { test: /^fust\s?a1$/i,  base:"#c7d2fe", border:"#6366f1" }, // indaco (spazio opzionale)
-  { test: /^cyse\s?a1$/i,  base:"#86efac", border:"#16a34a" }, // verde alternativo
-  { test: /^arti\s?a1$/i,  base:"#fbcfe8", border:"#ec4899" }, // rosa
-  { test: /^syam\s?a1$/i,  base:"#93c5fd", border:"#3b82f6" }, // blu
-];
-
 const COURSE_COLORS = new Map();  // cache, NON toccare
 
-const PALETTE = [
-  { base: "#93c5fd", border: "#3b82f6" }, // blu
-  { base: "#a5f3fc", border: "#06b6d4" }, // ciano
-  { base: "#bbf7d0", border: "#22c55e" }, // verde
-  { base: "#fde68a", border: "#f59e0b" }, // arancio
-  { base: "#fbcfe8", border: "#ec4899" }, // rosa
-  { base: "#ddd6fe", border: "#8b5cf6" }, // viola
-  { base: "#fecaca", border: "#f87171" }, // rosso tenue
-  { base: "#c7d2fe", border: "#6366f1" }, // indaco
-  { base: "#86efac", border: "#22c55e" }, // verde pastello
-  { base: "#e9d5ff", border: "#9333ea" }, // viola pastello
-];
+// 1) Mappa fissa corso → colore (tutti diversi)
+// chiavi già normalizzate: minuscolo, senza spazi, "a1" → "1"
+const COURSE_FIXED = new Map([
+  ["syam1", "#16A34A"], // Verde
+  ["arti1", "#F97316"], // Arancione
+  ["cyse1", "#FACC15"], // Giallo
+  ["fust1", "#3B82F6"], // Blu
+  ["agod2", "#8B5CF6"], // Viola
+  ["fust2", "#92400E"], // Marrone
+  ["dolc2", "#9CA3AF"], // Grigio
+  ["cyse2", "#EC4899"], // Rosa
+  ["frot2", "#F5DEB3"], // Beige
+]);
+
 
 const DEFAULT_XLSX_URL = 'data/calendario.xlsx';
 
@@ -146,39 +135,35 @@ function hashHue(str) {
   for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
   return h % 360;
 }
+
+// 2) helper: hex → rgba(alpha)
+function hexToRgba(hex, alpha) {
+  if (!hex) return `rgba(0,0,0,${alpha})`;
+  let h = String(hex).trim();
+  if (h[0] === '#') h = h.slice(1);
+  const r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
 function courseColor(courseName) {
   if (!courseName) {
-    return {
-      swatch: "#94a3b8",
-      bg: "rgba(148,163,184,0.12)",
-      hover: "rgba(148,163,184,0.22)",
-      border: "#64748b",
-    };
+    return { swatch:"#94a3b8", bg:"rgba(148,163,184,0.12)", hover:"rgba(148,163,184,0.22)", border:"#64748b" };
   }
-
-  // cache
   if (COURSE_COLORS.has(courseName)) return COURSE_COLORS.get(courseName);
 
-  // 1) override manuale (se definito)
-  const ov = findCourseOverride(courseName);
-  let colors;
-  if (ov) {
-    colors = { base: ov.base, border: ov.border };
-  } else {
-    // 2) fallback: palette con indice deterministico
-    const idx = hashStr(courseName) % PALETTE.length;
-    colors = PALETTE[idx];
-  }
+  // normalizza: minuscolo, togli spazi, "a1"→"1"
+  const key = String(courseName).trim().toLowerCase().replace(/\s+/g, "").replace(/a1$/, "1");
 
-  const c = {
-    swatch: colors.border,
-    bg: colors.base + "40",    // ~25% alpha
-    hover: colors.base + "60", // ~38% alpha
-    border: colors.border,
-  };
+  // mapping fisso (nessuna collisione)
+  const border = COURSE_FIXED.get(key);
+  const c = border
+    ? { swatch: border, bg: hexToRgba(border, 0.20), hover: hexToRgba(border, 0.32), border }
+    : { swatch: "#64748b", bg: "rgba(100,116,139,0.20)", hover: "rgba(100,116,139,0.32)", border: "#64748b" }; // fallback neutro
+
   COURSE_COLORS.set(courseName, c);
   return c;
 }
+
+
 
 
 function buildLegendFromRows(rows) {
