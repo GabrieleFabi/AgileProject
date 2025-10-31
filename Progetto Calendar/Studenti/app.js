@@ -256,6 +256,165 @@ function renderOptions(selectEl, options) {
     .join("");
 }
 
+// =======================
+// Batch + Resume (localStorage) per Add/Delete eventi
+// =======================
+const LS_KEYS = {
+  addQueue: "itsaa_add_queue_v1",
+  delQueue: "itsaa_del_queue_v1",
+};
+
+function lsGetJSON(key, fallback = []) {
+  try {
+    const s = localStorage.getItem(key);
+    return s ? JSON.parse(s) : fallback;
+  } catch { return fallback; }
+}
+function lsSetJSON(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+}
+function lsDel(key) {
+  try { localStorage.removeItem(key); } catch {}
+}
+
+// Stato runtime
+let processingAdd = false;
+let processingDel = false;
+
+function updateProgressBadge(text) {
+  setStatus(text, "info");
+}
+
+// ---------- ADD: enqueue + process in batch (20) ----------
+function enqueueAddEvents(events) {
+  // Normalizza payload (riduciamo dimensione in LS)
+  const items = events.map(ev => ({
+    uid: ev.extendedProperties?.private?.itsaa_uid || "",
+    ev
+  }));
+  const q = lsGetJSON(LS_KEYS.addQueue, []);
+  q.push(...items);
+  lsSetJSON(LS_KEYS.addQueue, q);
+  return q.length;
+}
+
+async function processAddQueue(batchSize = 20) {
+  if (processingAdd) return;
+  processingAdd = true;
+
+  try {
+    let q = lsGetJSON(LS_KEYS.addQueue, []);
+    let inserted = 0, skipped = 0, failed = 0;
+
+    while (q.length) {
+      const batch = q.splice(0, batchSize);
+      updateProgressBadge(`Creo eventi… (restanti: ${q.length + batch.length})`);
+
+      // esegui batch in sequenza (potresti anche parallelizzare con Promise.allSettled)
+      for (const item of batch) {
+        const uid = item.uid;
+        const ev = item.ev;
+
+        try {
+          // dedup: se già presente, skip
+          const exists = await findByPrivateProp("primary", "itsaa_uid", uid);
+          if (exists) { skipped++; continue; }
+
+          await gapi.client.calendar.events.insert({
+            calendarId: "primary",
+            resource: ev,
+            conferenceDataVersion: 0,
+            supportsAttachments: false,
+          });
+          inserted++;
+          await delay(50);
+        } catch (e) {
+          console.warn("Insert fail", e);
+          failed++;
+        }
+      }
+
+      // aggiorna LS con coda restante e UI
+      lsSetJSON(LS_KEYS.addQueue, q);
+      updateGcalUi();
+    }
+
+    if (inserted + skipped + failed === 0) {
+      setStatus("Coda vuota: nulla da creare.", "ok");
+    } else {
+      setStatus(`Fatto: inseriti ${inserted}, già presenti ${skipped}, errori ${failed}.`, "ok");
+    }
+  } finally {
+    processingAdd = false;
+    updateGcalUi();
+  }
+}
+
+function resumeAddQueueIfAny() {
+  const q = lsGetJSON(LS_KEYS.addQueue, []);
+  if (q.length && GCAL.authed && GCAL.gapiReady) {
+    processAddQueue(20);
+  }
+}
+
+// ---------- DELETE: enqueue + process in batch (20) ----------
+function enqueueDeleteByEvents(items) {
+  // in coda salviamo solo id evento
+  const q = lsGetJSON(LS_KEYS.delQueue, []);
+  q.push(...items.map(ev => ({ id: ev.id })));
+  lsSetJSON(LS_KEYS.delQueue, q);
+  return q.length;
+}
+
+async function processDeleteQueue(batchSize = 20) {
+  if (processingDel) return;
+  processingDel = true;
+
+  try {
+    let q = lsGetJSON(LS_KEYS.delQueue, []);
+    let deleted = 0, failed = 0;
+
+    while (q.length) {
+      const batch = q.splice(0, batchSize);
+      updateProgressBadge(`Elimino eventi… (restanti: ${q.length + batch.length})`);
+
+      for (const item of batch) {
+        try {
+          await gapi.client.calendar.events.delete({
+            calendarId: "primary",
+            eventId: item.id,
+          });
+          deleted++;
+          await delay(50);
+        } catch (e) {
+          console.warn("Delete fail", e);
+          failed++;
+        }
+      }
+
+      lsSetJSON(LS_KEYS.delQueue, q);
+      updateGcalUi();
+    }
+
+    if (deleted + failed === 0) {
+      setStatus("Coda vuota: nulla da eliminare.", "ok");
+    } else {
+      setStatus(`Eliminati ${deleted} eventi. Errori ${failed}.`, "ok");
+    }
+  } finally {
+    processingDel = false;
+    updateGcalUi();
+  }
+}
+
+function resumeDeleteQueueIfAny() {
+  const q = lsGetJSON(LS_KEYS.delQueue, []);
+  if (q.length && GCAL.authed && GCAL.gapiReady) {
+    processDeleteQueue(20);
+  }
+}
+
+
 
 
 // --- Helpers date/time ---------------------------------------------------
@@ -885,6 +1044,9 @@ window.addEventListener("load", () => {
         if (resp && resp.access_token) {
           GCAL.authed = true;
           updateGcalUi();
+          resumeAddQueueIfAny();
+          resumeDeleteQueueIfAny();
+          updateGcalUi();
         }
       },
     });
@@ -935,13 +1097,12 @@ $("#btnPushEvents")?.addEventListener("click", async () => {
       return;
     }
 
-    // Conferma
-    const ok = confirm(`Creare ${events.length} eventi su Google Calendar (primario)?\nVerranno evitati i duplicati.`);
+    const ok = confirm(`Creare ${events.length} eventi in batch sul Calendar? (dedup attivo)`);
     if (!ok) return;
 
-    // Inserimento con dedup (privateExtendedProperty itsaa_uid)
-    const result = await pushEventsDedup(events);
-    setStatus(`Fatto: inseriti ${result.inserted}, già presenti ${result.skipped}.`, "ok");
+    const totalQueued = enqueueAddEvents(events);
+    setStatus(`In coda ${totalQueued} eventi. Avvio creazione…`);
+    await processAddQueue(20); // batch da 20
   } catch (e) {
     console.error(e);
     setStatus("Errore durante la creazione degli eventi.", "err");
@@ -950,25 +1111,28 @@ $("#btnPushEvents")?.addEventListener("click", async () => {
   }
 });
 
+
 // --- Pulsante per eliminare eventi creati dallo script ITSAA ---
 $("#btnDeleteEvents")?.addEventListener("click", async () => {
   if (!(GCAL.gapiReady && GCAL.authed)) {
     setStatus("Collega prima Google.", "err");
     return;
   }
-  const ok = confirm("Vuoi eliminare TUTTI gli eventi creati dal calendario ITSAA?");
+
+  const ok = confirm("Vuoi eliminare TUTTI gli eventi ITSAA (proprietà privata) oppure, se non trovati, quelli con titolo 'Lezione —'?");
   if (!ok) return;
 
   try {
-    setStatus("Cerco eventi ITSAA da eliminare…");
+    setStatus("Scansiono calendario per selezionare cosa eliminare…");
 
     const calendarId = "primary";
-    // finestra ampia (oggi-1y → oggi+2y)
     const now = new Date();
     const min = new Date(now); min.setFullYear(now.getFullYear() - 1);
     const max = new Date(now); max.setFullYear(now.getFullYear() + 2);
 
-    let pageToken = null, candidates = [];
+    let pageToken = null;
+    let candidates = [];
+
     do {
       const resp = await gapi.client.calendar.events.list({
         calendarId,
@@ -980,32 +1144,48 @@ $("#btnDeleteEvents")?.addEventListener("click", async () => {
         pageToken,
       });
       const items = resp.result.items || [];
-      // filtra SOLO quelli creati dallo script (presenza della nostra proprietà privata)
-      for (const ev of items) {
-        if (ev.extendedProperties?.private?.itsaa_uid) {
-          candidates.push(ev);
-        }
-      }
+
+      // 1) preferisci quelli con extended property our UID
+      const withUID = items.filter(ev => ev.extendedProperties?.private?.itsaa_uid);
+      candidates.push(...withUID);
       pageToken = resp.result.nextPageToken || null;
     } while (pageToken);
 
+    // 2) Se nulla trovato con UID, fallback per titolo "Lezione —"
     if (!candidates.length) {
-      setStatus("Nessun evento ITSAA trovato da eliminare.", "ok");
+      setStatus("Nessun evento con UID. Attivo fallback 'Lezione —'…");
+      pageToken = null;
+      do {
+        const resp = await gapi.client.calendar.events.list({
+          calendarId,
+          timeMin: min.toISOString(),
+          timeMax: max.toISOString(),
+          singleEvents: true,
+          maxResults: 2500,
+          orderBy: "startTime",
+          pageToken,
+        });
+        const items = resp.result.items || [];
+        const titled = items.filter(ev => ev.summary?.trim()?.startsWith("Lezione —"));
+        candidates.push(...titled);
+        pageToken = resp.result.nextPageToken || null;
+      } while (pageToken);
+    }
+
+    if (!candidates.length) {
+      setStatus("Nessun evento trovabile da eliminare.", "ok");
       return;
     }
 
-    let deleted = 0;
-    for (const ev of candidates) {
-      await gapi.client.calendar.events.delete({ calendarId, eventId: ev.id });
-      deleted++;
-      await delay(100);
-    }
-    setStatus(`Eliminati ${deleted} eventi ITSAA.`, "ok");
+    const totalQueued = enqueueDeleteByEvents(candidates);
+    setStatus(`In coda per eliminazione: ${totalQueued} eventi. Avvio rimozione…`);
+    await processDeleteQueue(20);
   } catch (e) {
     console.error(e);
     setStatus("Errore durante la rimozione.", "err");
   }
 });
+
 
 
 
@@ -1191,4 +1371,7 @@ renderTable = function(headers, rows) {
 
   setStatus("Carico calendario…");
   updateToggleButton();
+  // Se l'utente era a metà di un'operazione e torna online, proviamo a riprendere
+  resumeAddQueueIfAny();
+  resumeDeleteQueueIfAny();
 })();
