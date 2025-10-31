@@ -2,7 +2,10 @@
 <html lang="it">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0"
+    />
     <title>Calendario Docenti</title>
     <link rel="stylesheet" href="styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -28,16 +31,28 @@
         <!-- SEZIONE UPLOAD NASCOSTA (solo per testing) -->
         <div class="card hidden-ui" style="display:none !important;">
           <div class="inner controls">
-            <div id="dropZone" class="dropzone" tabindex="0" role="button" aria-label="Trascina qui il file Excel o clicca per selezionarlo">
+            <div
+              id="dropZone"
+              class="dropzone"
+              tabindex="0"
+              role="button"
+              aria-label="Trascina qui il file Excel o clicca per selezionarlo"
+            >
               <div>
                 <strong>Trascina qui</strong> il file <code>.xlsx</code><br />
                 <span class="muted">Oppure</span>
                 <button id="pickBtn" type="button" class="btn">Scegli dal computer</button>
               </div>
-              <input id="fileInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden />
+              <input
+                id="fileInput"
+                type="file"
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                hidden
+              />
             </div>
             <div class="note">
-              Il file deve essere lo stesso usato per gli studenti. La home estrarrà automaticamente l’elenco unico dei docenti.
+              Il file deve essere lo stesso usato per gli studenti. La home
+              estrarrà automaticamente l’elenco unico dei docenti.
             </div>
           </div>
         </div>
@@ -45,7 +60,13 @@
         <div class="card">
           <div class="inner">
             <div class="controls-inline centered" style="margin-bottom:8px">
-              <input id="teacherSearch" type="search" class="input highlight-input" placeholder="Cerca docente..." aria-label="Cerca docente" />
+              <input
+                id="teacherSearch"
+                type="search"
+                class="input highlight-input"
+                placeholder="Cerca docente..."
+                aria-label="Cerca docente"
+              />
             </div>
             <div id="teacherList" class="teacher-grid"></div>
             <div class="footer"><span class="muted" id="teacherCount">—</span></div>
@@ -53,19 +74,37 @@
         </div>
       </section>
 
-      <!-- CALENDARIO: identico a versione studenti ma filtrato per docente -->
+      <!-- CALENDARIO -->
       <section id="calendarSection" class="uibox" style="display:none;">
-        <!-- UI nascoste richieste da app.js (solo per funzioni di formattazione) -->
+        <!-- UI nascoste richieste da app.js -->
         <div class="hidden-ui">
           <select id="dateColumnSelect"></select>
           <select id="timeColumnSelect"></select>
+        </div>
+
+        <!-- Google Calendar card -->
+        <div class="card" id="gcalCard">
+          <div class="inner" style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center">
+            <button class="btn primary" id="btnGConnect" type="button">🔑 Connetti Google</button>
+            <button class="btn" id="btnPushEvents" type="button" disabled>➕ Aggiungi lezioni al mio Calendar</button>
+            <button class="btn danger" id="btnDeleteEvents" type="button" disabled>🗑️ Elimina eventi</button>
+          </div>
+          <div class="hint" style="padding:0 16px 16px; text-align:center">
+            Crea/Elimina eventi sul calendario primario. Dedup automatico via proprietà privata.
+          </div>
         </div>
 
         <div class="card">
           <div class="inner controls-split">
             <div class="controls-left">
               <div class="controls-inline centered">
-                <input id="searchInput" type="search" class="input" placeholder="Cerca nelle lezioni…" aria-label="Cerca lezioni" />
+                <input
+                  id="searchInput"
+                  type="search"
+                  class="input"
+                  placeholder="Cerca nelle lezioni…"
+                  aria-label="Cerca lezioni"
+                />
                 <button id="showAllBtn" class="btn" type="button" title="Mostra tutto"></button>
                 <button id="backHomeBtn" class="btn" type="button" title="Torna alla Home">⬅️Torna alla Home</button>
               </div>
@@ -97,6 +136,10 @@
         </div>
       </section>
     </div>
+
+    <!-- Google Identity Services + gapi client -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
 
     <script src="app.js" defer></script>
   </body>
