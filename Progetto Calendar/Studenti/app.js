@@ -15,6 +15,50 @@ const landing = $("#landing");
 const appSection = $("#appSection");
 const yearLabel = $("#yearLabel");
 const courseSection = $("#courseSection");
+const sheetSelect = $("#sheetSelect");
+
+// === Overlay di progresso bloccante ===
+const overlayEl = document.getElementById("progressOverlay");
+const fillEl = document.getElementById("progressFill");
+const titleEl = document.getElementById("progressTitle");
+const pctEl = document.getElementById("progressPct");
+const countEl = document.getElementById("progressCount");
+
+if (overlayEl) overlayEl.hidden = true;
+
+let _progressTotal = 0;
+let _progressDone = 0;
+
+function showProgress({ title = "Elaborazione…", total = 0 } = {}) {
+  _progressTotal = Math.max(0, total);
+  _progressDone = 0;
+  if (titleEl) titleEl.textContent = title;
+  updateProgress(0);
+  if (overlayEl) {
+    overlayEl.hidden = false;
+    document.documentElement.style.overflow = "hidden";
+  }
+}
+
+function updateProgress(done, extraText) {
+  _progressDone = Math.min(Math.max(0, done), _progressTotal || done);
+  const pct = _progressTotal > 0 ? Math.round((_progressDone / _progressTotal) * 100) : 0;
+  if (fillEl) fillEl.style.width = `${pct}%`;
+  if (pctEl) pctEl.textContent = `${pct}%`;
+  if (countEl) countEl.textContent = `${_progressDone} / ${_progressTotal || "?"}`;
+  if (extraText && titleEl) titleEl.textContent = extraText;
+}
+
+function hideProgress(finalMessage) {
+  if (finalMessage && titleEl) titleEl.textContent = finalMessage;
+  if (overlayEl) {
+    setTimeout(() => {
+      overlayEl.hidden = true;
+      document.documentElement.style.overflow = "";
+    }, 250);
+  }
+}
+
 
 // --- Helpers per scaricare XLSX da Web App (JSON b64) o file statico ---
 async function fetchXlsxArrayBuffer(url) {
@@ -298,57 +342,60 @@ function enqueueAddEvents(events) {
   return q.length;
 }
 
-async function processAddQueue(batchSize = 20) {
-  if (processingAdd) return;
+async function processAddQueue(batchSize = 20, onProgress = null) {
+  if (processingAdd) return { inserted: 0, skipped: 0, failed: 0, total: 0 };
   processingAdd = true;
 
   try {
     let q = lsGetJSON(LS_KEYS.addQueue, []);
-    let inserted = 0, skipped = 0, failed = 0;
+    const total = q.length;
+    let inserted = 0, skipped = 0, failed = 0, done = 0;
 
     while (q.length) {
       const batch = q.splice(0, batchSize);
+      // stato testuale (badge)
       updateProgressBadge(`Creo eventi… (restanti: ${q.length + batch.length})`);
 
-      // esegui batch in sequenza (potresti anche parallelizzare con Promise.allSettled)
       for (const item of batch) {
         const uid = item.uid;
-        const ev = item.ev;
+        const ev  = item.ev;
 
         try {
-          // dedup: se già presente, skip
-          const exists = await findByPrivateProp("primary", "itsaa_uid", uid);
-          if (exists) { skipped++; continue; }
-
-          await gapi.client.calendar.events.insert({
-            calendarId: "primary",
-            resource: ev,
-            conferenceDataVersion: 0,
-            supportsAttachments: false,
-          });
-          inserted++;
-          await delay(50);
+          // dedup
+          if (await findByPrivateProp("primary", "itsaa_uid", uid)) {
+            skipped++;
+          } else {
+            await gapi.client.calendar.events.insert({
+              calendarId: "primary",
+              resource: ev,
+              conferenceDataVersion: 0,
+              supportsAttachments: false,
+            });
+            inserted++;
+            await delay(50);
+          }
         } catch (e) {
           console.warn("Insert fail", e);
           failed++;
+        } finally {
+          done++;
+          if (onProgress) onProgress(done, total);
+          else updateProgress(done, `Creazione eventi… (${done}/${total})`);
         }
       }
 
-      // aggiorna LS con coda restante e UI
+      // salva coda restante e aggiorna UI bottoni
       lsSetJSON(LS_KEYS.addQueue, q);
       updateGcalUi();
     }
 
-    if (inserted + skipped + failed === 0) {
-      setStatus("Coda vuota: nulla da creare.", "ok");
-    } else {
-      setStatus(`Fatto: inseriti ${inserted}, già presenti ${skipped}, errori ${failed}.`, "ok");
-    }
+    return { inserted, skipped, failed, total };
   } finally {
     processingAdd = false;
     updateGcalUi();
   }
 }
+
 
 function resumeAddQueueIfAny() {
   const q = lsGetJSON(LS_KEYS.addQueue, []);
@@ -1081,55 +1128,46 @@ $("#btnGConnect")?.addEventListener("click", () => {
 
 $("#btnPushEvents")?.addEventListener("click", async () => {
   try {
-    if (!(GCAL.gapiReady && GCAL.authed)) {
-      setStatus("Connetti Google prima di creare eventi.", "err");
-      return;
-    }
-    if (!currentData?.length) {
-      setStatus("Nessuna riga da esportare.", "err");
-      return;
-    }
+    if (!(GCAL.gapiReady && GCAL.authed)) return setStatus("Connetti Google prima.", "err");
+    if (!currentData?.length)           return setStatus("Nessuna riga da esportare.", "err");
 
-    setStatus("Preparo eventi…");
     const events = buildEventsFromRows(currentHeaders, currentData);
-    if (!events.length) {
-      setStatus("Nessun evento valido (manca Data o orari).", "err");
-      return;
-    }
+    if (!events.length) return setStatus("Nessun evento valido.", "err");
 
-    const ok = confirm(`Creare ${events.length} eventi in batch sul Calendar? (dedup attivo)`);
-    if (!ok) return;
+    if (!confirm(`Creare ${events.length} eventi su Calendar (dedup attivo)?`)) return;
 
-    const totalQueued = enqueueAddEvents(events);
-    setStatus(`In coda ${totalQueued} eventi. Avvio creazione…`);
-    await processAddQueue(20); // batch da 20
+    showProgress({ title: "Aggiungo eventi al tuo Google Calendar…", total: events.length });
+
+    enqueueAddEvents(events);
+    const res = await processAddQueue(20, (done, total) => {
+      updateProgress(done, `Creazione eventi… (${done}/${total})`);
+    });
+
+    hideProgress("Completato.");
+    setStatus(`Inseriti ${res.inserted}, già presenti ${res.skipped}, errori ${res.failed}.`, "ok");
   } catch (e) {
     console.error(e);
-    setStatus("Errore durante la creazione degli eventi.", "err");
+    hideProgress("Errore durante la creazione.");
+    setStatus("Errore durante la creazione.", "err");
   } finally {
     updateGcalUi();
   }
 });
 
 
+
 // --- Pulsante per eliminare eventi creati dallo script ITSAA ---
 $("#btnDeleteEvents")?.addEventListener("click", async () => {
-  if (!(GCAL.gapiReady && GCAL.authed)) {
-    setStatus("Collega prima Google.", "err");
-    return;
-  }
-
-  const ok = confirm("Vuoi eliminare TUTTI gli eventi ITSAA (proprietà privata) oppure, se non trovati, quelli con titolo 'Lezione —'?");
-  if (!ok) return;
+  if (!(GCAL.gapiReady && GCAL.authed)) return setStatus("Collega prima Google.", "err");
+  if (!confirm("Eliminare tutti gli eventi ITSAA dal tuo calendario?")) return;
 
   try {
-    setStatus("Scansiono calendario per selezionare cosa eliminare…");
+    showProgress({ title: "Elimino eventi dal tuo Google Calendar…", total: 100 }); // placeholder
 
     const calendarId = "primary";
     const now = new Date();
     const min = new Date(now); min.setFullYear(now.getFullYear() - 1);
     const max = new Date(now); max.setFullYear(now.getFullYear() + 2);
-
     let pageToken = null;
     let candidates = [];
 
@@ -1144,47 +1182,35 @@ $("#btnDeleteEvents")?.addEventListener("click", async () => {
         pageToken,
       });
       const items = resp.result.items || [];
-
-      // 1) preferisci quelli con extended property our UID
-      const withUID = items.filter(ev => ev.extendedProperties?.private?.itsaa_uid);
-      candidates.push(...withUID);
+      candidates.push(...items.filter(ev => ev.extendedProperties?.private?.itsaa_uid));
       pageToken = resp.result.nextPageToken || null;
     } while (pageToken);
 
-    // 2) Se nulla trovato con UID, fallback per titolo "Lezione —"
+    updateProgress(0, `Trovati ${candidates.length} eventi da eliminare…`);
     if (!candidates.length) {
-      setStatus("Nessun evento con UID. Attivo fallback 'Lezione —'…");
-      pageToken = null;
-      do {
-        const resp = await gapi.client.calendar.events.list({
-          calendarId,
-          timeMin: min.toISOString(),
-          timeMax: max.toISOString(),
-          singleEvents: true,
-          maxResults: 2500,
-          orderBy: "startTime",
-          pageToken,
-        });
-        const items = resp.result.items || [];
-        const titled = items.filter(ev => ev.summary?.trim()?.startsWith("Lezione —"));
-        candidates.push(...titled);
-        pageToken = resp.result.nextPageToken || null;
-      } while (pageToken);
+      hideProgress("Nessun evento da eliminare.");
+      return setStatus("Nessun evento trovabile da eliminare.", "ok");
     }
 
-    if (!candidates.length) {
-      setStatus("Nessun evento trovabile da eliminare.", "ok");
-      return;
+    let deleted = 0;
+    for (const ev of candidates) {
+      try {
+        await gapi.client.calendar.events.delete({ calendarId, eventId: ev.id });
+        deleted++;
+        updateProgress(deleted, `Eliminazione ${deleted}/${candidates.length}`);
+        await delay(40);
+      } catch {}
     }
 
-    const totalQueued = enqueueDeleteByEvents(candidates);
-    setStatus(`In coda per eliminazione: ${totalQueued} eventi. Avvio rimozione…`);
-    await processDeleteQueue(20);
+    hideProgress("Completato.");
+    setStatus(`Eliminati ${deleted} eventi.`, "ok");
   } catch (e) {
     console.error(e);
+    hideProgress("Errore durante la rimozione.");
     setStatus("Errore durante la rimozione.", "err");
   }
 });
+
 
 
 
