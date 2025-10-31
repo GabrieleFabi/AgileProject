@@ -393,11 +393,13 @@ function dropUnwantedColumns(headers, rows) {
   const norm = headers.map(normalizeHeaderName);
   const removeByName = new Set();
 
+  const isMobile = window.innerWidth <= 520; // rileva mobile
+
   norm.forEach((h, i) => {
     if (
       h === "giorno" ||
       h === "frot2" ||
-      h === "uf" ||                              // ← nascondi sempre la colonna UF
+      (/^uf$/.test(h) && isMobile) ||  // nascondi UF solo su mobile
       /^(docente|insegnante|prof|teacher|formatore)$/.test(h)
     ) removeByName.add(headers[i]);
   });
@@ -412,12 +414,15 @@ function dropUnwantedColumns(headers, rows) {
     if (normalizeHeaderName(hdr) === "colonna" && isColEmpty(hdr)) removeByName.add(hdr);
   });
 
-  const keptHeaders = headers.filter((h) => h === 'Corso' || !removeByName.has(h));
+  const keptHeaders = headers.filter((h) => h === "Corso" || !removeByName.has(h));
   const cleanedRows = rows.map((row) => {
-    const o = {}; keptHeaders.forEach((h) => (o[h] = row[h])); return o;
+    const o = {};
+    keptHeaders.forEach((h) => (o[h] = row[h]));
+    return o;
   });
   return { headers: keptHeaders, rows: cleanedRows };
 }
+
 
 function normalizeCourseName(name) { return String(name || "").replace(/\s*A1\b/i, "1"); }
 
