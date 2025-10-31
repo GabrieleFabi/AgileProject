@@ -851,6 +851,326 @@ $$(".landing [data-anno]").forEach((btn) => {
   btn.addEventListener("click", () => applyYearChoice(btn.dataset.anno));
 });
 
+// =======================
+// Google Calendar (OAuth + insert events)
+// =======================
+const GCAL = {
+  CLIENT_ID: "835074642817-l007g9fchi8dbqpedev1hrqrkmjkd109.apps.googleusercontent.com",
+  SCOPES: "https://www.googleapis.com/auth/calendar.events",
+  tokenClient: null,
+  gapiReady: false,
+  gisReady: false,
+  authed: false,
+};
+
+// Carica gapi client quando pronto
+window.addEventListener("load", () => {
+  // gapi
+  if (window.gapi?.load) {
+    gapi.load("client", async () => {
+      await gapi.client.init({
+        // API Key non strettamente necessaria con discovery
+        discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"],
+      });
+      GCAL.gapiReady = true;
+      updateGcalUi();
+    });
+  }
+  // GIS
+  if (window.google?.accounts?.oauth2) {
+    GCAL.tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GCAL.CLIENT_ID,
+      scope: GCAL.SCOPES,
+      callback: (resp) => {
+        if (resp && resp.access_token) {
+          GCAL.authed = true;
+          updateGcalUi();
+        }
+      },
+    });
+    GCAL.gisReady = true;
+    updateGcalUi();
+  }
+});
+
+function updateGcalUi() {
+  const btnConn = $("#btnGConnect");
+  const btnPush = $("#btnPushEvents");
+  const btnDel  = $("#btnDeleteEvents");
+  const ready = GCAL.gapiReady && GCAL.gisReady;
+
+  if (btnConn) {
+    btnConn.disabled = !ready;
+    btnConn.textContent = GCAL.authed ? "✅ Connesso a Google" : "🔑 Connetti Google";
+  }
+  if (btnPush) {
+    btnPush.disabled = !(ready && GCAL.authed && currentData?.length);
+  }
+  if (btnDel) {
+    btnDel.disabled = !(ready && GCAL.authed);
+  }
+}
+
+$("#btnGConnect")?.addEventListener("click", () => {
+  if (!GCAL.tokenClient) return;
+  // Prompt consenso la prima volta, poi silenzioso
+  GCAL.tokenClient.requestAccessToken({ prompt: GCAL.authed ? "" : "consent" });
+});
+
+$("#btnPushEvents")?.addEventListener("click", async () => {
+  try {
+    if (!(GCAL.gapiReady && GCAL.authed)) {
+      setStatus("Connetti Google prima di creare eventi.", "err");
+      return;
+    }
+    if (!currentData?.length) {
+      setStatus("Nessuna riga da esportare.", "err");
+      return;
+    }
+
+    setStatus("Preparo eventi…");
+    const events = buildEventsFromRows(currentHeaders, currentData);
+    if (!events.length) {
+      setStatus("Nessun evento valido (manca Data o orari).", "err");
+      return;
+    }
+
+    // Conferma
+    const ok = confirm(`Creare ${events.length} eventi su Google Calendar (primario)?\nVerranno evitati i duplicati.`);
+    if (!ok) return;
+
+    // Inserimento con dedup (privateExtendedProperty itsaa_uid)
+    const result = await pushEventsDedup(events);
+    setStatus(`Fatto: inseriti ${result.inserted}, già presenti ${result.skipped}.`, "ok");
+  } catch (e) {
+    console.error(e);
+    setStatus("Errore durante la creazione degli eventi.", "err");
+  } finally {
+    updateGcalUi();
+  }
+});
+
+// --- Pulsante per eliminare eventi creati dallo script ITSAA ---
+$("#btnDeleteEvents")?.addEventListener("click", async () => {
+  if (!(GCAL.gapiReady && GCAL.authed)) {
+    setStatus("Collega prima Google.", "err");
+    return;
+  }
+  const ok = confirm("Vuoi eliminare TUTTI gli eventi creati dal calendario ITSAA?");
+  if (!ok) return;
+
+  try {
+    setStatus("Cerco eventi ITSAA da eliminare…");
+
+    const calendarId = "primary";
+    // finestra ampia (oggi-1y → oggi+2y)
+    const now = new Date();
+    const min = new Date(now); min.setFullYear(now.getFullYear() - 1);
+    const max = new Date(now); max.setFullYear(now.getFullYear() + 2);
+
+    let pageToken = null, candidates = [];
+    do {
+      const resp = await gapi.client.calendar.events.list({
+        calendarId,
+        timeMin: min.toISOString(),
+        timeMax: max.toISOString(),
+        singleEvents: true,
+        maxResults: 2500,
+        orderBy: "startTime",
+        pageToken,
+      });
+      const items = resp.result.items || [];
+      // filtra SOLO quelli creati dallo script (presenza della nostra proprietà privata)
+      for (const ev of items) {
+        if (ev.extendedProperties?.private?.itsaa_uid) {
+          candidates.push(ev);
+        }
+      }
+      pageToken = resp.result.nextPageToken || null;
+    } while (pageToken);
+
+    if (!candidates.length) {
+      setStatus("Nessun evento ITSAA trovato da eliminare.", "ok");
+      return;
+    }
+
+    let deleted = 0;
+    for (const ev of candidates) {
+      await gapi.client.calendar.events.delete({ calendarId, eventId: ev.id });
+      deleted++;
+      await delay(100);
+    }
+    setStatus(`Eliminati ${deleted} eventi ITSAA.`, "ok");
+  } catch (e) {
+    console.error(e);
+    setStatus("Errore durante la rimozione.", "err");
+  }
+});
+
+
+
+function buildEventsFromRows(headers, rows) {
+  const dateH = autoDetectDateHeader(headers);
+  const startH = autoDetectStartHeader(headers);
+  const endH = autoDetectEndHeader(headers);
+  const moduleH = autoDetectModuleHeader(headers);
+
+  if (!dateH) return [];
+
+  // altre colonne utili
+  const LOCATION_HEADER_RE = /^(aula|sede|luogo|location)$/i;
+  const DESC_HEADER_RE = /^(descrizione|note|argomento|tema|contenuti)$/i;
+  const locationH = headers.find(h => LOCATION_HEADER_RE.test(String(h)));
+  const descH = headers.find(h => DESC_HEADER_RE.test(String(h)));
+
+  const tz = "Europe/Rome";
+  const events = [];
+
+  for (const r of rows) {
+    const dVal = r[dateH];
+    const d = dVal instanceof Date ? dVal : new Date(dVal);
+    if (isNaN(d)) continue;
+
+    const sMin = startH ? toMinutes(r[startH]) : null;
+    const eMin = endH ? toMinutes(r[endH]) : null;
+
+    // UID stabile per dedup: modulo + data + start
+    const uid = keyForRowPenultimate(r, dateH, startH, moduleH || "");
+
+    // summary
+    const mod = moduleH ? String(r[moduleH] ?? "").trim() : "";
+    let summary = mod ? `Lezione — ${mod}` : "Lezione";
+
+    const event = {
+      summary,
+      description: buildDescription(r, headers),
+      location: locationH ? String(r[locationH] || "") : undefined,
+      extendedProperties: { private: { itsaa_uid: uid } },
+    };
+
+    if (sMin != null && eMin != null && eMin > sMin) {
+      const date = d.toISOString().slice(0, 10);
+      const start = minutesToLocalRfc3339(date, sMin);
+      const end   = minutesToLocalRfc3339(date, eMin);
+      event.start = { dateTime: start, timeZone: "Europe/Rome" };
+      event.end   = { dateTime: end,   timeZone: "Europe/Rome" };
+    } else {
+      // Evento giornaliero (se mancano orari)
+      const date = d.toISOString().slice(0, 10);
+      event.start = { date };
+      // Google richiede end esclusivo per eventi all-day → aggiungiamo 1 giorno
+      const nextDay = new Date(d); nextDay.setDate(d.getDate() + 1);
+      event.end = { date: nextDay.toISOString().slice(0, 10) };
+    }
+    events.push(event);
+
+  }
+  return events;
+}
+
+function buildDescription(row, headers) {
+  // Monta una descrizione leggibile con alcune colonne chiave
+  const parts = [];
+  const moduleH = autoDetectModuleHeader(headers);
+  const dateH   = autoDetectDateHeader(headers);
+  const startH  = autoDetectStartHeader(headers);
+  const endH    = autoDetectEndHeader(headers);
+
+  if (moduleH) parts.push(`Modulo/UF: ${String(row[moduleH] ?? "")}`);
+  if (dateH)   parts.push(`Data: ${prettyValue(row[dateH], dateH)}`);
+  if (startH || endH) {
+    const s = startH ? prettyValue(row[startH], startH) : "";
+    const e = endH ? prettyValue(row[endH], endH) : "";
+    parts.push(`Orario: ${s}${s && e ? " - " : ""}${e}`);
+  }
+
+  // Aggiunge tutte le altre colonne non vuote (esclude Data/Orari/UF)
+  const skip = new Set([moduleH, dateH, startH, endH].filter(Boolean));
+  headers.forEach(h => {
+    if (!skip.has(h)) {
+      const v = row[h];
+      if (!isEmptyCell(v)) parts.push(`${h}: ${prettyValue(v, h)}`);
+    }
+  });
+
+  // UID nascosto di servizio (non necessario, ma utile in debug)
+  const uid = keyForRowPenultimate(row, dateH, startH, moduleH || "");
+  parts.push(`UID: ${uid}`);
+
+  return parts.join("\n");
+}
+
+function minutesToLocalRfc3339(dateYYYYMMDD, minutes) {
+  const pad = (n) => String(n).padStart(2, "0");
+  const hh = Math.floor(minutes / 60);
+  const mm = minutes % 60;
+  // RFC3339 senza offset/Z: Google userà il campo timeZone per interpretarlo correttamente
+  return `${dateYYYYMMDD}T${pad(hh)}:${pad(mm)}:00`;
+}
+
+async function pushEventsDedup(events) {
+  const calendarId = "primary";
+  let inserted = 0, skipped = 0;
+
+  for (const ev of events) {
+    const uid = ev.extendedProperties?.private?.itsaa_uid;
+    try {
+      // 1) check se già esiste evento con la stessa uid
+      const exists = await findByPrivateProp(calendarId, "itsaa_uid", uid);
+      if (exists) { skipped++; continue; }
+      // 2) insert
+      await gapi.client.calendar.events.insert({
+        calendarId,
+        resource: ev,
+        conferenceDataVersion: 0,
+        supportsAttachments: false,
+      });
+      inserted++;
+      await delay(120); // piccolo pacing per evitare rate-limit
+    } catch (e) {
+      console.warn("Insert error for UID", uid, e);
+      // se qualcosa va storto non blocchiamo tutta la coda
+    }
+  }
+  return { inserted, skipped };
+}
+
+async function findByPrivateProp(calendarId, key, value) {
+  if (!(key && value)) return false;
+  try {
+    // Finestra ampia: oggi-1y → oggi+2y
+    const now = new Date();
+    const min = new Date(now); min.setFullYear(now.getFullYear() - 1);
+    const max = new Date(now); max.setFullYear(now.getFullYear() + 2);
+
+    const resp = await gapi.client.calendar.events.list({
+      calendarId,
+      privateExtendedProperty: `${key}=${value}`,
+      timeMin: min.toISOString(),
+      timeMax: max.toISOString(),
+      maxResults: 1,
+      singleEvents: true,
+      orderBy: "startTime",
+    });
+    return (resp.result?.items || []).length > 0;
+  } catch (e) {
+    console.warn("findByPrivateProp error", e);
+    return false;
+  }
+}
+
+function delay(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+// Rinfresca lo stato bottoni quando cambia la tabella
+const _origRenderTable = renderTable;
+renderTable = function(headers, rows) {
+  _origRenderTable(headers, rows);
+  updateGcalUi();
+};
+
+
+
+
 // Init --------------------------------------------------------------------
 (function init() {
   // (Rimosso il ramo con window.CALENDAR_XLSX_URL)
