@@ -13,33 +13,32 @@
         <div class="title">
           <div class="logo" id="courseLogo" aria-hidden="true">DOCENTE</div>
           <div>
-            <h1 id="pageTitle">Calendario Docenti</h1>
+            <h1 id="pageTitle">Calendario Docenti 2025/2027</h1>
             <div class="sub">
               <span id="subLabel">Seleziona un docente per vedere le sue lezioni</span>
             </div>
           </div>
         </div>
 
-        <div class="badge" id="statusBadge">Carica un file Excel (.xlsx)…</div>
+        <div class="badge"id="statusBadge">Carica un file Excel (.xlsx)…</div>
       </header>
 
-      <!-- HOME: upload + lista docenti -->
-      <section id="homeSection" class="uibox">
-        <div class="card">
-          <div class="inner controls">
-            <div id="dropZone" class="dropzone" tabindex="0" role="button" aria-label="Trascina qui il file Excel o clicca per selezionarlo">
-              <div>
-                <strong>Trascina qui</strong> il file <code>.xlsx</code><br />
-                <span class="muted">Oppure</span>
-                <button id="pickBtn" type="button" class="btn">Scegli dal computer</button>
-              </div>
-              <input id="fileInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden />
+      <!-- SEZIONE UPLOAD NASCOSTA (solo per testing) -->
+      <div class="card hidden-ui" style="display:none !important;">
+        <div class="inner controls">
+          <div id="dropZone" class="dropzone" tabindex="0" role="button" aria-label="Trascina qui il file Excel o clicca per selezionarlo">
+            <div>
+              <strong>Trascina qui</strong> il file <code>.xlsx</code><br />
+              <span class="muted">Oppure</span>
+              <button id="pickBtn" type="button" class="btn">Scegli dal computer</button>
             </div>
-            <div class="note">
-              Il file deve essere lo stesso usato per gli studenti. La home estrarrà automaticamente l’elenco unico dei docenti.
-            </div>
+            <input id="fileInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden />
+          </div>
+          <div class="note">
+            Il file deve essere lo stesso usato per gli studenti. La home estrarrà automaticamente l’elenco unico dei docenti.
           </div>
         </div>
+      </div>
 
         <div class="card">
           <div class="inner">
