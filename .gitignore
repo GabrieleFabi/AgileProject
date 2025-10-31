@@ -13,3 +13,11 @@ Thumbs.db
 
 #Ignora secrets.txt
 secrets.txt
+
+# Ignora i file di dati locali (calendari generati)
+Progetto Calendar/Studenti/data/
+Progetto Calendar/Docenti/data/
+Progetto Calendar/Data
+
+# In caso ci siano file XLSX in qualunque sottocartella data
+**/data/*.xlsx
