@@ -143,10 +143,10 @@ let moduleHeaderName = null;
 // Corsi per anno
 const COURSES = {
   1: [
-    { key: "fust",  label: "Fust",  sheet: "Fust A1" },
-    { key: "cyse",  label: "Cyse",  sheet: "Cyse A1" },
-    { key: "arti",  label: "Arti",  sheet: "Arti A1" },
-    { key: "syam",  label: "Syam",  sheet: "Syam A1" },
+    { key: "fust",  label: "Fust",  sheet: "Fust1" },
+    { key: "cyse",  label: "Cyse",  sheet: "Cyse1" },
+    { key: "arti",  label: "Arti",  sheet: "Arti1" },
+    { key: "syam",  label: "Syam",  sheet: "Syam1" },
     // --- Nuovi corsi Anno 1 ---
     { key: "enem1", label: "EneM", sheet: "EneM1" },
     { key: "agod1", label: "AgoD", sheet: "AgoD1" },
