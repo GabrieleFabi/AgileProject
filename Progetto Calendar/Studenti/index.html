@@ -8,28 +8,35 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   </head>
   <body>
+    <!-- Overlay di progresso (bloccante) -->
+    <div id="progressOverlay" class="progress-overlay" hidden aria-live="polite" role="dialog" aria-modal="true">
+      <div class="progress-card" role="document">
+        <div class="progress-spinner" aria-hidden="true"></div>
+        <h3 id="progressTitle" class="progress-title">Sincronizzazione calendario…</h3>
+        <div class="progress-bar" aria-label="Avanzamento">
+          <div id="progressFill" class="progress-fill" style="width:0%"></div>
+        </div>
+        <div class="progress-meta">
+          <span id="progressPct">0%</span>
+          <span class="sep">•</span>
+          <span id="progressCount">0 / 0</span>
+        </div>
+        <p class="progress-hint">Non chiudere questa pagina finché l’operazione non è terminata.</p>
+      </div>
+    </div>
+
     <div class="wrap">
       <header>
         <div class="title">
           <div class="logo" id="courseLogo" aria-hidden="true"></div>
           <div>
             <h1>Calendario Studs 2025/2027</h1>
-            <div class="sub">
-              <span id="yearLabel">Scegli un anno per iniziare</span>
-            </div>
+            <div class="sub"><span id="yearLabel">Scegli un anno per iniziare</span></div>
           </div>
         </div>
 
-        <input
-          id="fileInput"
-          type="file"
-          accept=".xlsx,.xls,.csv"
-          style="display: none"
-        />
-
-        <button class="btn ghost" id="btnBack" type="button">
-          ⬅️ Torna alla selezione corso
-        </button>
+        <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" style="display:none" />
+        <button class="btn ghost" id="btnBack" type="button">⬅️ Torna alla selezione corso</button>
         <div class="badge" id="statusBadge">Nessun file</div>
       </header>
 
@@ -38,19 +45,12 @@
         <div class="landing-card">
           <h2>Inizia caricando il file Excel e poi scegli l'Anno</h2>
           <div class="landing-buttons">
-            <button class="btn big" id="btnLoadTop" type="button">
-              📄 Carica Excel adesso
-            </button>
-            <button class="btn big ghost" id="btnClearTop" type="button">
-              🧹 Pulisci tabella
-            </button>
+            <button class="btn big" id="btnLoadTop" type="button">📄 Carica Excel adesso</button>
+            <button class="btn big ghost" id="btnClearTop" type="button">🧹 Pulisci tabella</button>
           </div>
-          <p class="hint">
-            Dopo il caricamento, scegli l’Anno e poi il Corso: il foglio verrà
-            pre-selezionato automaticamente.
-          </p>
+          <p class="hint">Dopo il caricamento, scegli l’Anno e poi il Corso: il foglio verrà pre-selezionato automaticamente.</p>
 
-          <h2 style="margin-top: 20px">Seleziona l'Anno</h2>
+          <h2 style="margin-top:20px">Seleziona l'Anno</h2>
           <div class="landing-buttons">
             <button class="btn big primary" data-anno="1">Anno 1</button>
             <button class="btn big primary" data-anno="2">Anno 2</button>
@@ -71,61 +71,45 @@
       <!-- Calendario -->
       <section id="appSection" class="uibox hidden">
         <div class="controls-split">
+          <!-- Card: Ricerca -->
           <div class="card" id="searchBar">
             <div class="card-title" id="searchTitle">Cerca</div>
             <div class="inner row-controls">
               <div class="stack">
-                <input
-                  id="searchInput"
-                  type="search"
-                  aria-labelledby="searchTitle"
-                  placeholder="Cerca in tabella (testo, date, orari)…"
-                />
+                <input id="searchInput" type="search" aria-labelledby="searchTitle" placeholder="Cerca in tabella (testo, date, orari)…" />
               </div>
-              <button
-                class="btn"
-                id="btnToggleAll"
-                type="button"
-                title="Mostra tutto il calendario"
-              >
-                📅 Mostra tutto
-              </button>
+              <button class="btn" id="btnToggleAll" type="button" title="Mostra tutto il calendario">📅 Mostra tutto</button>
             </div>
           </div>
 
+          <!-- Card: Legenda -->
           <div class="card">
             <div class="inner legend">
               <div class="legend-title">Legenda</div>
               <div class="legend-item">
-                <span
-                  class="legend-chip legend-chip--orange"
-                  aria-hidden="true"
-                ></span>
-                <span
-                  >Giornata evidenziata in <strong>arancione</strong>:
-                  minore di <strong>8h</strong> di lezione.</span
-                >
+                <span class="legend-chip legend-chip--orange" aria-hidden="true"></span>
+                <span>Giornata in <strong>arancione</strong>: meno di <strong>8h</strong> di lezione.</span>
               </div>
               <div class="legend-item">
-                <span
-                  class="legend-chip legend-chip--red"
-                  aria-hidden="true"
-                ></span>
-                <span
-                  >Giornata evidenziata in <strong>rosso</strong>: minore/uguale
-                  di <strong>4h</strong> di lezione.</span
-                >
+                <span class="legend-chip legend-chip--red" aria-hidden="true"></span>
+                <span>Giornata in <strong>rosso</strong>: ≤ <strong>4h</strong> di lezione.</span>
               </div>
               <div class="legend-item">
-                <span
-                  class="legend-chip legend-chip--green"
-                  aria-hidden="true"
-                ></span>
-                <span
-                  >Riga in <strong>verde</strong>:
-                  <strong>Esame</strong> (penultima lezione del modulo).</span
-                >
+                <span class="legend-chip legend-chip--green" aria-hidden="true"></span>
+                <span>Riga in <strong>verde</strong>: <strong>Esame</strong> (penultima del modulo).</span>
               </div>
+            </div>
+          </div>
+
+          <!-- Card: Google Calendar -->
+          <div class="card" id="gcalCard" data-cid="">
+            <div class="card-title">Google Calendar</div>
+            <div class="inner" style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center">
+              <button class="btn primary" id="btnGConnect" type="button">🔑 Connetti Google</button>
+              <button class="btn" id="btnPushEvents" type="button" disabled>➕ Abbonati a questo calendario</button>
+            </div>
+            <div class="hint" style="padding:0 16px 16px; text-align:center">
+              Il bottone agisce sul <strong>calendario centrale ITS</strong> associato al <strong>corso attivo</strong>.
             </div>
           </div>
         </div>
@@ -144,13 +128,13 @@
               <tbody></tbody>
             </table>
           </div>
-          <div class="footer">
-            <div id="rowsCount">—</div>
-          </div>
+          <div class="footer"><div id="rowsCount">—</div></div>
         </div>
       </section>
     </div>
 
+    <!-- Solo Google Identity Services (OAuth), nessuna API gapi calendar -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="app.js" defer></script>
   </body>
 </html>
