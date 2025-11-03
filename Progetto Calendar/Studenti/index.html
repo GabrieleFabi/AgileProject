@@ -105,11 +105,8 @@
           <div class="card" id="gcalCard" data-cid="">
             <div class="card-title">Google Calendar</div>
             <div class="inner" style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center">
-              <!-- Piano B (API): Mostra se usi OAuth -->
               <button class="btn primary" id="btnGConnect" type="button">🔑 Connetti Google</button>
               <button class="btn" id="btnPushEvents" type="button" disabled>➕ Abbonati a questo calendario</button>
-              <button class="btn danger" id="btnDeleteEvents" type="button" disabled>🚫 Smetti di seguire</button>
-              <!-- Piano A (solo link): Se preferisci, puoi far sì che app.js trasformi btnPushEvents in <a href="https://calendar.google.com/calendar/u/0/r?cid=..."> -->
             </div>
             <div class="hint" style="padding:0 16px 16px; text-align:center">
               Il bottone agisce sul <strong>calendario centrale ITS</strong> associato al <strong>corso attivo</strong>.
@@ -136,10 +133,8 @@
       </section>
     </div>
 
-    <!-- Google Identity Services + gapi client (necessari solo per Piano B) -->
+    <!-- Solo Google Identity Services (OAuth), nessuna API gapi calendar -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="https://apis.google.com/js/api.js" async defer></script>
-
     <script src="app.js" defer></script>
   </body>
 </html>
