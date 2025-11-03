@@ -143,17 +143,25 @@ let moduleHeaderName = null;
 // Corsi per anno
 const COURSES = {
   1: [
-    { key: "fust", label: "Fust", sheet: "Fust A1" },
-    { key: "cyse", label: "Cyse", sheet: "Cyse A1" },
-    { key: "arti", label: "Arti", sheet: "Arti A1" },
-    { key: "syam", label: "Syam", sheet: "Syam A1" },
+    { key: "fust",  label: "Fust",  sheet: "Fust A1" },
+    { key: "cyse",  label: "Cyse",  sheet: "Cyse A1" },
+    { key: "arti",  label: "Arti",  sheet: "Arti A1" },
+    { key: "syam",  label: "Syam",  sheet: "Syam A1" },
+    // --- Nuovi corsi Anno 1 ---
+    { key: "enem1", label: "EneM", sheet: "EneM1" },
+    { key: "agod1", label: "AgoD", sheet: "AgoD1" },
+    { key: "imer1", label: "ImeR", sheet: "ImeR1" },
+    { key: "dita1", label: "Dita", sheet: "Dita1" }
   ],
   2: [
     { key: "front", label: "Front", sheet: "Frot2" },
-    { key: "cyse", label: "Cyse", sheet: "Cyse2" },
-    { key: "dolc", label: "Dolc", sheet: "Dolc2" },
-    { key: "fust", label: "Fust", sheet: "Fust2" },
-    { key: "ago", label: "Ago", sheet: "AgoD2" },
+    { key: "cyse",  label: "Cyse",  sheet: "Cyse2" },
+    { key: "dolc",  label: "Dolc",  sheet: "Dolc2" },
+    { key: "fust",  label: "Fust",  sheet: "Fust2" },
+    { key: "ago",   label: "Ago",   sheet: "AgoD2" },
+    // --- Nuovi corsi Anno 2 ---
+    { key: "enes2", label: "EneS", sheet: "EneS2" },
+    { key: "iota2", label: "IotA", sheet: "IotA2" }
   ],
 };
 
