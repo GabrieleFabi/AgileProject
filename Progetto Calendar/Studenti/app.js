@@ -24,6 +24,20 @@ const titleEl = document.getElementById("progressTitle");
 const pctEl = document.getElementById("progressPct");
 const countEl = document.getElementById("progressCount");
 
+/* ======= NUOVE COSTANTI: mappa foglio → Google Calendar ID ======= */
+const CALENDAR_BY_SHEET = {
+  "Fust2": "c_013ea419a34139e404c9756601ca3c1e0065cd221281bf919e8d73ccea96dd8d@group.calendar.google.com",
+  "Frot2": "c_198eb75ebc89748a4a8d305a0033c0a23f10f1426c5943c2a461b746768736be@group.calendar.google.com",
+  "Cyse2": "c_18aa898d91b45e39dfbd80900347e13ac24c8bd4ad8f250288099eb51f999f38@group.calendar.google.com",
+  "Dolc2": "c_3be7b7fab10384a7f85430d3a3847f6bc88508746c8a6dee964ad3dee6d3fb5e@group.calendar.google.com",
+  "AgoD2": "c_6c8669cc9b35556376327ae1a269fccc59faf8f0ef9049222b0d1f018835cdae@group.calendar.google.com",
+  "Fust A1": "c_4974dfb894175cda42b8909491ff216c5e76bda37e5f8f9971dfeb832dac2b44@group.calendar.google.com",
+  "Cyse A1": "c_645321fed6640203fe366362c39783da363b7cbbff9df294063ee809189e1355@group.calendar.google.com",
+  "Arti A1": "c_d5059f4709fcf82caa2b8bbbc17a044daeb6c037c667fbfd375025cd5fd1accd@group.calendar.google.com",
+  "Syam A1": "c_1d561c548bceb07cf6797cd95611e2473fd74645566221d882df29ca053770ac@group.calendar.google.com"
+};
+
+
 if (overlayEl) overlayEl.hidden = true;
 
 let _progressTotal = 0;
@@ -120,6 +134,14 @@ async function loadLocalCalendar() {
 
     sheetSelect.value = defaultSheet;
     loadSheet(defaultSheet);
+
+    const _origLoadSheet = typeof loadSheet === "function" ? loadSheet : null;
+    if (_origLoadSheet) {
+      window.loadSheet = function(name) {
+        _origLoadSheet(name);
+        updateAddButtonLink();
+      };
+    }
 
     const IS_REMOTE = /^https?:\/\//i.test(DEFAULT_XLSX_URL);
     const LABEL_SRC = IS_REMOTE ? "(web app)" : "(locale)";
@@ -459,6 +481,14 @@ function resumeDeleteQueueIfAny() {
   if (q.length && GCAL.authed && GCAL.gapiReady) {
     processDeleteQueue(20);
   }
+}
+
+
+/* Helper: restituisce l’ID calendario del foglio attualmente selezionato */
+function getCurrentSheetCalendarId() {
+  if (!sheetSelect || !sheetSelect.value) return null;
+  const sheetName = sheetSelect.value;
+  return CALENDAR_BY_SHEET[sheetName] || null;
 }
 
 
@@ -1126,32 +1156,16 @@ $("#btnGConnect")?.addEventListener("click", () => {
   GCAL.tokenClient.requestAccessToken({ prompt: GCAL.authed ? "" : "consent" });
 });
 
-$("#btnPushEvents")?.addEventListener("click", async () => {
-  try {
-    if (!(GCAL.gapiReady && GCAL.authed)) return setStatus("Connetti Google prima.", "err");
-    if (!currentData?.length)           return setStatus("Nessuna riga da esportare.", "err");
-
-    const events = buildEventsFromRows(currentHeaders, currentData);
-    if (!events.length) return setStatus("Nessun evento valido.", "err");
-
-    if (!confirm(`Creare ${events.length} eventi su Calendar (dedup attivo)?`)) return;
-
-    showProgress({ title: "Aggiungo eventi al tuo Google Calendar…", total: events.length });
-
-    enqueueAddEvents(events);
-    const res = await processAddQueue(20, (done, total) => {
-      updateProgress(done, `Creazione eventi… (${done}/${total})`);
-    });
-
-    hideProgress("Completato.");
-    setStatus(`Inseriti ${res.inserted}, già presenti ${res.skipped}, errori ${res.failed}.`, "ok");
-  } catch (e) {
-    console.error(e);
-    hideProgress("Errore durante la creazione.");
-    setStatus("Errore durante la creazione.", "err");
-  } finally {
-    updateGcalUi();
+/* Ora apre la pagina di Google Calendar con il cid del foglio corrente */
+$("#btnPushEvents")?.addEventListener("click", (e) => {
+  const calId = getCurrentSheetCalendarId();
+  if (!calId) {
+    setStatus("Seleziona un corso/foglio con calendario associato.", "err");
+    return;
   }
+  const url = `https://calendar.google.com/calendar/u/0/r?cid=${encodeURIComponent(calId)}`;
+  window.open(url, "_blank", "noopener,noreferrer");
+  setStatus("Si apre Google Calendar per aggiungere il calendario del corso.", "ok");
 });
 
 
@@ -1381,6 +1395,24 @@ renderTable = function(headers, rows) {
   _origRenderTable(headers, rows);
   updateGcalUi();
 };
+
+/* Aggiorna stato/label del bottone “Aggiungi…” in base al foglio */
+function updateAddButtonLink() {
+  const btn = $("#btnPushEvents");
+  if (!btn) return;
+
+  const calId = getCurrentSheetCalendarId();
+  if (calId) {
+    btn.disabled = false;
+    btn.dataset.calId = calId;
+    btn.textContent = "➕ Abbonati a questo calendario";
+    btn.title = "Apri Google Calendar e aggiungi il calendario del corso attivo";
+  } else {
+    btn.disabled = true;
+    delete btn.dataset.calId;
+    btn.textContent = "➕ Abbonati a questo calendario";
+  }
+}
 
 
 
