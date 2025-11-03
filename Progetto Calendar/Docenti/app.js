@@ -680,253 +680,111 @@ backHomeBtn?.addEventListener("click", _backHomeHandler);
   });
 })();
 
-// ===================================================
-// GOOGLE CALENDAR (OAuth + Create/Delete con dedup)
-// ===================================================
+
+
+// ===== Calendari centrali ITS (per corso) =====
+const CALENDAR_BY_COURSE = {
+  "fust2": "c_013ea419a34139e404c9756601ca3c1e0065cd221281bf919e8d73ccea96dd8d@group.calendar.google.com",
+  "frot2": "c_198eb75ebc89748a4a8d305a0033c0a23f10f1426c5943c2a461b746768736be@group.calendar.google.com",
+  "cyse2": "c_18aa898d91b45e39dfbd80900347e13ac24c8bd4ad8f250288099eb51f999f38@group.calendar.google.com",
+  "dolc2": "c_3be7b7fab10384a7f85430d3a3847f6bc88508746c8a6dee964ad3dee6d3fb5e@group.calendar.google.com",
+  "agod2": "c_6c8669cc9b35556376327ae1a269fccc59faf8f0ef9049222b0d1f018835cdae@group.calendar.google.com",
+  "fust1": "c_4974dfb894175cda42b8909491ff216c5e76bda37e5f8f9971dfeb832dac2b44@group.calendar.google.com",
+  "cyse1": "c_645321fed6640203fe366362c39783da363b7cbbff9df294063ee809189e1355@group.calendar.google.com",
+  "arti1": "c_d5059f4709fcf82caa2b8bbbc17a044daeb6c037c667fbfd375025cd5fd1accd@group.calendar.google.com",
+  "syam1": "c_1d561c548bceb07cf6797cd95611e2473fd74645566221d882df29ca053770ac@group.calendar.google.com",
+};
+
+function normCourseKey(s) { return String(s||"").toLowerCase().replace(/\s+/g,""); }
+
+function listVisibleCourses() {
+  // dai dati attualmente filtrati (rowsForTeacher), estrai set di corsi
+  const set = new Set();
+  (rowsForTeacher || []).forEach(r => { if (r && r["Corso"]) set.add(String(r["Corso"])); });
+  return [...set];
+}
+
+function getCalendarIdForCourse(courseLabel) {
+  const key = normCourseKey(courseLabel).replace(/a1$/, "1"); // "Fust A1" -> "fust1"
+  return CALENDAR_BY_COURSE[key] || null;
+}
+
+// ===== Google OAuth (GIS) — solo per "Connetti Google" (nessuna API Calendar) =====
 const GCAL = {
-  CLIENT_ID: "835074642817-l007g9fchi8dbqpedev1hrqrkmjkd109.apps.googleusercontent.com", // ⬅️ SOSTITUISCI
-  SCOPES: "https://www.googleapis.com/auth/calendar.events",
+  CLIENT_ID: "835074642817-l007g9fchi8dbqpedev1hrqrkmjkd109.apps.googleusercontent.com",
+  SCOPES: "https://www.googleapis.com/auth/calendar.readonly",
   tokenClient: null,
-  gapiReady: false,
   gisReady: false,
   authed: false,
 };
 
-// Helpers per eventi
-function minutesToLocalRfc3339(dateYYYYMMDD, minutes) {
-  const pad = (n) => String(n).padStart(2, "0");
-  const hh = Math.floor(minutes / 60), mm = minutes % 60;
-  return `${dateYYYYMMDD}T${pad(hh)}:${pad(mm)}:00`;
-}
-function toMinutes(v){
-  if (v instanceof Date) return v.getUTCHours()*60+v.getUTCMinutes();
-  if (typeof v === "number" && v >= 0 && v < 1) return Math.round(v*24*60);
-  const m = String(v||"").match(/^(\d{1,2})[:.](\d{2})$/);
-  return m ? (+m[1]*60 + +m[2]) : null;
-}
-function dateKeyFromVal(v){
-  const d = v instanceof Date ? v : new Date(v);
-  return isNaN(d) ? String(v) : d.toISOString().slice(0,10);
-}
-function keyForRow(row, dateH, startH, moduleH){
-  const mod = row[moduleH] ?? "";
-  const dateKey = dateKeyFromVal(row[dateH]) ?? "";
-  const sMin = toMinutes(row[startH]);
-  const t = sMin != null ? String(sMin) : "";
-  return `${mod}__${dateKey}__${t}`;
-}
-
-// Carica gapi/gis
 window.addEventListener("load", () => {
-  if (window.gapi?.load) {
-    gapi.load("client", async () => {
-      await gapi.client.init({ discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"] });
-      GCAL.gapiReady = true; updateGcalUi();
-    });
-  }
   if (window.google?.accounts?.oauth2) {
     GCAL.tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: GCAL.CLIENT_ID,
       scope: GCAL.SCOPES,
-      callback: (resp) => { if (resp?.access_token) { GCAL.authed = true; updateGcalUi(); } },
+      callback: (resp) => {
+        if (resp && resp.access_token) {
+          GCAL.authed = true;
+          updateGcalUi();
+        }
+      },
     });
-    GCAL.gisReady = true; updateGcalUi();
+    GCAL.gisReady = true;
+    updateGcalUi();
   }
 });
 
-function updateGcalUi(){
-  const ready = GCAL.gapiReady && GCAL.gisReady;
+function updateGcalUi() {
   const btnConn = document.getElementById("btnGConnect");
   const btnPush = document.getElementById("btnPushEvents");
-  const btnDel  = document.getElementById("btnDeleteEvents");
-  if (btnConn){ btnConn.disabled = !ready; btnConn.textContent = GCAL.authed ? "✅ Connesso a Google" : "🔑 Connetti Google"; }
-  if (btnPush){ btnPush.disabled = !(ready && GCAL.authed && rowsForTeacher?.length); }
-  if (btnDel) { btnDel.disabled  = !(ready && GCAL.authed); }
+  if (btnConn) {
+    btnConn.disabled = !GCAL.gisReady;
+    btnConn.textContent = GCAL.authed ? "✅ Connesso a Google" : "🔑 Connetti Google";
+  }
+  if (btnPush) {
+    // abilita se almeno un corso è presente nelle righe
+    const courses = listVisibleCourses();
+    btnPush.disabled = courses.length === 0;
+    btnPush.title = courses.length === 1
+      ? `Abbonati al calendario di ${courses[0]}`
+      : `Filtra la legenda per un solo corso per abbonarti più velocemente`;
+  }
 }
 
 document.getElementById("btnGConnect")?.addEventListener("click", () => {
-  GCAL.tokenClient?.requestAccessToken({ prompt: GCAL.authed ? "" : "consent" });
+  if (!GCAL.tokenClient) return;
+  GCAL.tokenClient.requestAccessToken({ prompt: GCAL.authed ? "" : "consent" });
 });
 
-// Costruisce eventi Docenti: summary "(aula) – (modulo)"
-function buildEventsFromTeacher(headers, rows){
-  const dateH   = autoDetectDateHeader(headers);
-  const startH  = autoDetectStartHeader(headers);
-  const endH    = autoDetectEndHeader(headers);
-  const moduleH = autoDetectModuleHeader(headers);
-  if (!dateH) return [];
-
-  const LOCATION_HEADER_RE = /^(aula|sede|luogo|location)$/i;
-  const locationH = headers.find(h => LOCATION_HEADER_RE.test(String(h)));
-  const tz = "Europe/Rome";
-  const out = [];
-
-  for (const r of rows){
-    const dVal = r[dateH];
-    const d = dVal instanceof Date ? dVal : new Date(dVal);
-    if (isNaN(d)) continue;
-
-    const sMin = startH ? toMinutes(r[startH]) : null;
-    const eMin = endH ? toMinutes(r[endH]) : null;
-
-    const mod  = moduleH ? String(r[moduleH] ?? "").trim() : "";
-    const aula = locationH ? String(r[locationH] || "").trim() : "";
-    let summary = (aula && mod) ? `${aula} – ${mod}` : (aula || mod || "Lezione");
-
-    const uid = keyForRow(r, dateH, startH, moduleH || "");
-
-    const ev = {
-      summary,
-      description: "", // se vuoi: come negli Studenti, costruisci descrizione completa
-      location: aula || undefined,
-      extendedProperties: { private: { itsaa_uid: uid } },
-    };
-
-    const date = d.toISOString().slice(0,10);
-    if (sMin != null && eMin != null && eMin > sMin){
-      ev.start = { dateTime: minutesToLocalRfc3339(date, sMin), timeZone: tz };
-      ev.end   = { dateTime: minutesToLocalRfc3339(date, eMin), timeZone: tz };
+// "Abbonati": se è selezionato un solo corso (tramite legenda), usa quello. Altrimenti prova con i corsi visibili.
+document.getElementById("btnPushEvents")?.addEventListener("click", () => {
+  // 1) se la legenda ha un solo corso selezionato, usa quello
+  let targetCourse = null;
+  if (selectedCourses && selectedCourses.size === 1) {
+    targetCourse = [...selectedCourses][0];
+  } else {
+    // 2) altrimenti dai dati visibili prendi i corsi unici
+    const courses = listVisibleCourses();
+    if (courses.length === 0) {
+      return setStatus("Nessun corso visibile: filtra per un docente e un corso.", "err");
+    } else if (courses.length === 1) {
+      targetCourse = courses[0];
     } else {
-      ev.start = { date };
-      const next = new Date(d); next.setDate(d.getDate()+1);
-      ev.end = { date: next.toISOString().slice(0,10) }; // all-day (end esclusivo)
-    }
-    out.push(ev);
-  }
-  return out;
-}
-
-async function findByPrivateProp(calendarId, key, value){
-  if (!(key && value)) return false;
-  try {
-    const now = new Date();
-    const min = new Date(now); min.setFullYear(now.getFullYear()-1);
-    const max = new Date(now); max.setFullYear(now.getFullYear()+2);
-    const resp = await gapi.client.calendar.events.list({
-      calendarId,
-      privateExtendedProperty: `${key}=${value}`,
-      timeMin: min.toISOString(),
-      timeMax: max.toISOString(),
-      maxResults: 1,
-      singleEvents: true,
-      orderBy: "startTime",
-    });
-    return (resp.result?.items || []).length > 0;
-  } catch { return false; }
-}
-function delay(ms){ return new Promise(r => setTimeout(r, ms)); }
-
-// Aggiungi eventi (dedup)
-document.getElementById("btnPushEvents")?.addEventListener("click", async () => {
-  try{
-    if (!(GCAL.gapiReady && GCAL.authed)) return setStatus("Connetti Google prima.", "err");
-    if (!rowsForTeacher?.length)        return setStatus("Nessuna lezione da esportare.", "err");
-
-    const events = buildEventsFromTeacher(headersRef, rowsForTeacher);
-    if (!events.length) return setStatus("Nessun evento valido.", "err");
-
-    if (!confirm(`Creare ${events.length} eventi su Calendar (dedup attivo)?`)) return;
-
-    // === PROGRESS: avvia overlay ===
-    showProgress({ title: "Aggiungo eventi al tuo Google Calendar…", total: events.length });
-
-    let inserted=0, skipped=0, failed=0, i=0;
-    for (const ev of events){
-      const uid = ev.extendedProperties.private.itsaa_uid;
-      try{
-        // Messaggio dinamico
-        updateProgress(i, `Verifica duplicati… (${i+1}/${events.length})`);
-
-        if (await findByPrivateProp("primary","itsaa_uid", uid)) { 
-          skipped++; 
-        } else {
-          updateProgress(i, `Creo evento… (${i+1}/${events.length})`);
-          await gapi.client.calendar.events.insert({ calendarId:"primary", resource: ev });
-          inserted++;
-          await delay(40);
-        }
-      } catch(e){ failed++; }
-      i++;
-      updateProgress(i);
-    }
-
-    hideProgress("Completato.");
-    setStatus(`Inseriti ${inserted}, già presenti ${skipped}, errori ${failed}.`, "ok");
-  } catch(e){
-    console.error(e);
-    hideProgress("Errore durante la creazione.");
-    setStatus("Errore durante la creazione.", "err");
-  } finally { updateGcalUi(); }
-});
-
-
-// Elimina eventi (UID → fallback titolo)
-document.getElementById("btnDeleteEvents")?.addEventListener("click", async () => {
-  if (!(GCAL.gapiReady && GCAL.authed)) return setStatus("Connetti Google prima.", "err");
-  if (!confirm("Eliminare eventi creati (UID) o, se non trovati, quelli con titolo che inizia con 'Lezione —' o che contiene ' – '?")) return;
-
-  try{
-    const calendarId = "primary";
-    const now = new Date();
-    const min = new Date(now); min.setFullYear(now.getFullYear()-1);
-    const max = new Date(now); max.setFullYear(now.getFullYear()+2);
-
-    // 1) prova con UID
-    let pageToken=null, candidates=[];
-    do{
-      const resp = await gapi.client.calendar.events.list({
-        calendarId, timeMin:min.toISOString(), timeMax:max.toISOString(),
-        singleEvents:true, maxResults:2500, orderBy:"startTime", pageToken
-      });
-      const items = resp.result.items || [];
-      candidates.push(...items.filter(ev => ev.extendedProperties?.private?.itsaa_uid));
-      pageToken = resp.result.nextPageToken || null;
-    } while(pageToken);
-
-    // 2) fallback per titolo
-    if (!candidates.length){
-      pageToken=null;
-      do{
-        const resp = await gapi.client.calendar.events.list({
-          calendarId, timeMin:min.toISOString(), timeMax:max.toISOString(),
-          singleEvents:true, maxResults:2500, orderBy:"startTime", pageToken
-        });
-        const items = resp.result.items || [];
-        const matches = items.filter(ev => {
-          const s = ev.summary?.trim() || "";
-          return s.startsWith("Lezione —") || s.includes(" – ");
-        });
-        candidates.push(...matches);
-        pageToken = resp.result.nextPageToken || null;
-      } while(pageToken);
-    }
-
-    if (!candidates.length) {
-      setStatus("Nessun evento trovabile da eliminare.", "ok");
+      setStatus("Seleziona un solo corso dalla legenda e riprova.", "err");
       return;
     }
-
-    // === PROGRESS: avvia overlay ===
-    showProgress({ title: "Elimino eventi dal tuo Google Calendar…", total: candidates.length });
-
-    let deleted=0, failed=0, i=0;
-    for (const ev of candidates){
-      try{
-        updateProgress(i, `Elimino… (${i+1}/${candidates.length})`);
-        await gapi.client.calendar.events.delete({ calendarId, eventId: ev.id });
-        deleted++;
-        await delay(30);
-      } catch(e){ failed++; }
-      i++;
-      updateProgress(i);
-    }
-
-    hideProgress("Completato.");
-    setStatus(`Eliminati ${deleted} eventi. Errori ${failed}.`, "ok");
-  } catch(e){
-    console.error(e);
-    hideProgress("Errore durante l'eliminazione.");
-    setStatus("Errore durante la rimozione.", "err");
   }
+
+  const calId = getCalendarIdForCourse(targetCourse);
+  if (!calId) {
+    return setStatus(`Nessun calendario associato per il corso “${targetCourse}”.`, "err");
+  }
+  const url = `https://calendar.google.com/calendar/u/0/r?cid=${encodeURIComponent(calId)}`;
+  window.open(url, "_blank", "noopener,noreferrer");
+  setStatus(`Apro Google Calendar per abbonarti a “${targetCourse}”.`, "ok");
 });
 
+// Rende reattivo il bottone quando cambiano i filtri / pagina
+const _renderTable = renderTable;
+renderTable = function() { _renderTable(); updateGcalUi(); };

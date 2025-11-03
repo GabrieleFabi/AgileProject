@@ -105,11 +105,10 @@
         <div class="card" id="gcalCard">
           <div class="inner" style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center">
             <button class="btn primary" id="btnGConnect" type="button">🔑 Connetti Google</button>
-            <button class="btn" id="btnPushEvents" type="button" disabled>➕ Aggiungi lezioni al mio Calendar</button>
-            <button class="btn danger" id="btnDeleteEvents" type="button" disabled>🗑️ Elimina eventi</button>
+            <button class="btn" id="btnPushEvents" type="button" disabled>➕ Abbonati al calendario del corso</button>
           </div>
           <div class="hint" style="padding:0 16px 16px; text-align:center">
-            Crea/Elimina eventi sul calendario primario. Dedup automatico via proprietà privata.
+            Scegli un <strong>corso</strong> e ti apro Google Calendar per abbonarti al suo calendario centrale.
           </div>
         </div>
 
@@ -156,10 +155,8 @@
       </section>
     </div>
 
-    <!-- Google Identity Services + gapi client -->
+    <!-- Solo Google Identity Services (OAuth), nessuna gapi calendar -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="https://apis.google.com/js/api.js" async defer></script>
-
     <script src="app.js" defer></script>
   </body>
 </html>
