@@ -203,8 +203,8 @@ function buildLegendFromRows(rows) {
     chip.className = "legend-chip";
     chip.setAttribute("role", "switch");
     const active = selectedCourses.has(corso);
-    chip.setAttribute("aria-checked", active ? "true" : "false");
     chip.classList.toggle("is-active", active);
+    chip.setAttribute("aria-checked", active ? "true" : "false");
 
     const sw = document.createElement("span");
     sw.className = "legend-swatch";
@@ -518,12 +518,22 @@ function textMatchRow(row, q, headers) {
   }
   return false;
 }
-function applyFilters() {
+function baseFilteredRows() {
+  // filtri “da oggi/tutto” + testo, ma **senza** filtro per corso
   let rows = showAll ? allRows.slice() : filterFromToday(allRows);
   rows = rows.filter(r => textMatchRow(r, searchQuery, headersRef));
-  if (selectedCourses.size > 0) rows = rows.filter(r => selectedCourses.has(String(r["Corso"] || "")));
   const dateH2 = autoDetectDateHeader(headersRef), startH2 = autoDetectStartHeader(headersRef);
-  if (dateH2) rows.sort((a, b) => compareByDateAndStart(a, b, dateH2, startH2));
+  if (dateH2) rows.sort((a,b) => compareByDateAndStart(a,b,dateH2,startH2));
+  return rows;
+}
+
+function applyFilters() {
+  // parte dai filtri base…
+  let rows = baseFilteredRows();
+  // …e solo se ho selezioni applico il filtro per corso
+  if (selectedCourses.size > 0) {
+    rows = rows.filter(r => selectedCourses.has(String(r["Corso"] || "")));
+  }
   return rows;
 }
 
@@ -547,10 +557,9 @@ function renderTable() {
   updateShowAllLabel();
 
   if (!headers.length || !rows.length) {
-    rowsCount.textContent = "—";
-    renderOptions(dateColumnSelect, ["— nessuna —"]);
-    renderOptions(timeColumnSelect, ["— nessuna —"]);
-    buildLegendFromRows([]);
+    rowsCount.textContent = "Nessuna lezione visibile. Prova 'Mostra tutto' o cambia i filtri.";
+    buildLegendFromRows(rowsForTeacher);
+    updatePagerUI?.();
     return;
   }
 
@@ -581,7 +590,7 @@ function renderTable() {
 
   const total = allRows.length; const vis = rowsForTeacher.length; rowsCount.textContent = showAll ? `${vis} lezioni totali` : `${vis} da oggi (${total} totali)`;
   updatePagerUI();
-  buildLegendFromRows(allRows);
+  buildLegendFromRows(baseFilteredRows());
 }
 
 // Eventi UI
