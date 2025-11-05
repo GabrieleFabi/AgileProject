@@ -567,7 +567,6 @@ tbody tr.row-penultimate:hover {
   ) !important;
 }
 
-
 /* Rispetta l'attributo hidden dell'overlay */
 .progress-overlay[hidden] {
   display: none !important;
@@ -586,7 +585,11 @@ tbody tr.row-penultimate:hover {
 
 .progress-card {
   width: min(520px, 92vw);
-  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(255,255,255,.94));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.98),
+    rgba(255, 255, 255, 0.94)
+  );
   border: 1px solid var(--border);
   border-radius: 18px;
   box-shadow: var(--shadow);
@@ -612,7 +615,7 @@ tbody tr.row-penultimate:hover {
   height: 100%;
   width: 0%;
   background: linear-gradient(90deg, #60a5fa, #3b82f6);
-  transition: width .18s ease-out;
+  transition: width 0.18s ease-out;
 }
 
 .progress-meta {
@@ -641,9 +644,17 @@ tbody tr.row-penultimate:hover {
   margin-inline: auto;
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 @media (max-width: 520px) {
-  .progress-card { padding: 16px 12px; }
-  .progress-title { font-size: 16px; }
+  .progress-card {
+    padding: 16px 12px;
+  }
+  .progress-title {
+    font-size: 16px;
+  }
 }
