@@ -12,13 +12,20 @@
   </head>
   <body>
     <!-- Overlay di progresso (bloccante) -->
-    <div id="progressOverlay" class="progress-overlay" hidden aria-live="polite" role="dialog" aria-modal="true">
+    <div
+      id="progressOverlay"
+      class="progress-overlay"
+      hidden
+      aria-live="polite"
+      role="dialog"
+      aria-modal="true"
+    >
       <div class="progress-card" role="document">
         <div class="progress-spinner" aria-hidden="true"></div>
         <h3 id="progressTitle" class="progress-title">Elaborazione…</h3>
 
         <div class="progress-bar" aria-label="Avanzamento">
-          <div id="progressFill" class="progress-fill" style="width:0%"></div>
+          <div id="progressFill" class="progress-fill" style="width: 0%"></div>
         </div>
 
         <div class="progress-meta">
@@ -27,7 +34,9 @@
           <span id="progressCount">0 / 0</span>
         </div>
 
-        <p class="progress-hint">Non chiudere questa pagina finché l’operazione non è terminata.</p>
+        <p class="progress-hint">
+          Non chiudere questa pagina finché l’operazione non è terminata.
+        </p>
       </div>
     </div>
 
@@ -38,7 +47,9 @@
           <div>
             <h1 id="pageTitle">Calendario Docenti 2025/2027</h1>
             <div class="sub">
-              <span id="subLabel">Seleziona un docente per vedere le sue lezioni</span>
+              <span id="subLabel"
+                >Seleziona un docente per vedere le sue lezioni</span
+              >
             </div>
           </div>
         </div>
@@ -49,7 +60,7 @@
       <!-- HOME: upload nascosto + lista docenti -->
       <section id="homeSection" class="uibox">
         <!-- SEZIONE UPLOAD NASCOSTA (solo per testing) -->
-        <div class="card hidden-ui" style="display:none !important;">
+        <div class="card hidden-ui" style="display: none !important">
           <div class="inner controls">
             <div
               id="dropZone"
@@ -61,7 +72,9 @@
               <div>
                 <strong>Trascina qui</strong> il file <code>.xlsx</code><br />
                 <span class="muted">Oppure</span>
-                <button id="pickBtn" type="button" class="btn">Scegli dal computer</button>
+                <button id="pickBtn" type="button" class="btn">
+                  Scegli dal computer
+                </button>
               </div>
               <input
                 id="fileInput"
@@ -79,7 +92,7 @@
 
         <div class="card">
           <div class="inner">
-            <div class="controls-inline centered" style="margin-bottom:8px">
+            <div class="controls-inline centered" style="margin-bottom: 8px">
               <input
                 id="teacherSearch"
                 type="search"
@@ -89,13 +102,15 @@
               />
             </div>
             <div id="teacherList" class="teacher-grid"></div>
-            <div class="footer"><span class="muted" id="teacherCount">—</span></div>
+            <div class="footer">
+              <span class="muted" id="teacherCount">—</span>
+            </div>
           </div>
         </div>
       </section>
 
       <!-- CALENDARIO -->
-      <section id="calendarSection" class="uibox" style="display:none;">
+      <section id="calendarSection" class="uibox" style="display: none">
         <!-- UI nascoste richieste da app.js -->
         <div class="hidden-ui">
           <select id="dateColumnSelect"></select>
@@ -113,8 +128,20 @@
                   placeholder="Cerca nelle lezioni…"
                   aria-label="Cerca lezioni"
                 />
-                <button id="showAllBtn" class="btn" type="button" title="Mostra tutto"></button>
-                <button id="backHomeBtn" class="btn" type="button" title="Torna alla Home">⬅️Torna alla Home</button>
+                <button
+                  id="showAllBtn"
+                  class="btn"
+                  type="button"
+                  title="Mostra tutto"
+                ></button>
+                <button
+                  id="backHomeBtn"
+                  class="btn"
+                  type="button"
+                  title="Torna alla Home"
+                >
+                  ⬅️Torna alla Home
+                </button>
               </div>
             </div>
             <div class="controls-right">
@@ -130,10 +157,29 @@
           <div class="footer">
             <div id="rowsCount">—</div>
             <div id="paginationControls" class="pager">
-              <button id="prevPage" class="btn" type="button" aria-label="Pagina precedente">←</button>
-              <span id="pageInfo" class="muted" style="min-width:110px; text-align:center;">—</span>
-              <button id="nextPage" class="btn" type="button" aria-label="Pagina successiva">→</button>
-              <span class="muted" style="margin-left:8px;">/ per pagina</span>
+              <button
+                id="prevPage"
+                class="btn"
+                type="button"
+                aria-label="Pagina precedente"
+              >
+                ←
+              </button>
+              <span
+                id="pageInfo"
+                class="muted"
+                style="min-width: 110px; text-align: center"
+                >—</span
+              >
+              <button
+                id="nextPage"
+                class="btn"
+                type="button"
+                aria-label="Pagina successiva"
+              >
+                →
+              </button>
+              <span class="muted" style="margin-left: 8px">/ per pagina</span>
               <select id="pageSize" class="sel">
                 <option value="25" selected>25</option>
                 <option value="50">50</option>
