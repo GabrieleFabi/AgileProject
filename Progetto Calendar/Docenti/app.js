@@ -30,6 +30,10 @@ const showAllBtn = $("#showAllBtn");
 const searchInput = $("#searchInput");
 const backHomeBtn = $("#backHomeBtn");
 
+// === ICS Web App (Google Apps Script) ===
+const ICS_BASE = "https://script.google.com/macros/s/AKfycbz_hvH3xqMwns1doyZfm8PcZUdhV8A3dNJQGrAcocwkdthJyejLwbt0IusOn48yn6tF/exec"; // <-- incolla qui il tuo URL Web App
+
+
 // (opzionale: se usi COURSE_OVERRIDES altrove)
 function findCourseOverride(name) {
   const n = String(name || "");
@@ -454,6 +458,7 @@ function openCalendarFor(displayName) {
   renderTable();
   setStatus(rowsForTeacher.length ? "Pronto" : "Nessuna lezione trovata", rowsForTeacher.length ? "ok" : "err");
   updateGcalUi(); // <-- aggiorna stato bottoni Google
+  populateIcsLinks(displayName);
 }
 
 function collectRowsForTeacher(displayName) {
@@ -646,6 +651,14 @@ function enableLogoAsHome(enable) {
   if (enable) { courseLogo.classList.add("is-clickable"); courseLogo.addEventListener("click", goHomeFromLogo); }
   else { courseLogo.classList.remove("is-clickable"); courseLogo.removeEventListener("click", goHomeFromLogo); }
 }
+
+function hideGcalCard() {
+  const card = document.getElementById("gcalCard");
+  if (card) card.style.display = "none";
+  const linksBox = document.getElementById("gcalLinks");
+  if (linksBox) { linksBox.hidden = true; linksBox.innerHTML = ""; }
+}
+
 function goHomeFromLogo() {
   calendarSection.style.display = "none";
   homeSection.style.display = "grid";
@@ -655,6 +668,7 @@ function goHomeFromLogo() {
   location.hash = "";
   setStatus("File caricato — scegli un docente", "ok");
   enableLogoAsHome(false);
+  hideGcalCard();
 }
 const _openCalendarFor = openCalendarFor;
 openCalendarFor = function(displayName) { _openCalendarFor(displayName); enableLogoAsHome(true); };
@@ -667,6 +681,7 @@ const _backHomeHandler = () => {
   location.hash = "";
   setStatus("File caricato — scegli un docente", "ok");
   enableLogoAsHome(false);
+  hideGcalCard();
 };
 backHomeBtn?.removeEventListener("click", _backHomeHandler);
 backHomeBtn?.addEventListener("click", _backHomeHandler);
@@ -695,6 +710,7 @@ const CALENDAR_BY_COURSE = {
   "syam1": "c_1d561c548bceb07cf6797cd95611e2473fd74645566221d882df29ca053770ac@group.calendar.google.com",
 };
 
+
 function normCourseKey(s) { return String(s||"").toLowerCase().replace(/\s+/g,""); }
 
 function listVisibleCourses() {
@@ -703,6 +719,40 @@ function listVisibleCourses() {
   (rowsForTeacher || []).forEach(r => { if (r && r["Corso"]) set.add(String(r["Corso"])); });
   return [...set];
 }
+
+function buildIcsUrlForTeacher(teacher) {
+  return `${ICS_BASE}?teacher=${encodeURIComponent(teacher)}`;
+}
+function buildIcsUrlForTeacherAndCourse(teacher, course) {
+  return `${ICS_BASE}?teacher=${encodeURIComponent(teacher)}&course=${encodeURIComponent(course)}`;
+}
+function populateIcsLinks(teacher) {
+  const card = document.getElementById("gcalCard");
+  if (card) card.style.display = "block"; // mostra la card in vista calendario
+
+  // bottone ICS personale (tutti i corsi)
+  const btnICS = document.getElementById("btnICS");
+  if (btnICS) btnICS.href = buildIcsUrlForTeacher(teacher);
+
+  // link opzionali per corso (se vuoi offrirli sotto)
+  const linksBox = document.getElementById("gcalLinks");
+  if (!linksBox) return;
+  const courses = listVisibleCourses();
+  if (!courses.length) { linksBox.hidden = true; linksBox.innerHTML = ""; return; }
+
+  linksBox.hidden = false;
+  const frag = document.createDocumentFragment();
+  courses.sort((a,b)=>a.localeCompare(b,'it')).forEach(corso => {
+    const a = document.createElement("a");
+    a.href = buildIcsUrlForTeacherAndCourse(teacher, corso);
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.textContent = `ICS • ${corso}`;
+    frag.appendChild(a);
+  });
+  linksBox.appendChild(frag);
+}
+
 
 function getCalendarIdForCourse(courseLabel) {
   const key = normCourseKey(courseLabel).replace(/a1$/, "1"); // "Fust A1" -> "fust1"

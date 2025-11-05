@@ -167,14 +167,21 @@ const COURSES = {
 
 const DROP_HEADER_RE = /^(colonna|giorno|fust2)$/i;
 
-// Avvio con query ?year=1|2
+// Avvio con query ?year=1|2 (default: 2)
 window.addEventListener("DOMContentLoaded", () => {
   const params = new URLSearchParams(window.location.search);
-  const forcedYear = params.get("year");
-  if (forcedYear === "1" || forcedYear === "2") {
-    landing.classList.add("hidden");
-    applyYearChoice(forcedYear);
+  let forcedYear = params.get("year");
+  if (forcedYear !== "1" && forcedYear !== "2") {
+    // Nessun year: manda all'anno 2 (URL consistente)
+    const base = window.location.pathname.replace(/\/+$/, "") || "/";
+    window.history.replaceState(null, "", `${base}?year=2`);
+    forcedYear = "2";
   }
+  if (landing) landing.classList.add("hidden");
+  applyYearChoice(forcedYear);
+  // (opzionale) nascondi il parametro dopo il routing
+  const cleanUrl = window.location.pathname;
+  window.history.replaceState(null, "", cleanUrl);
 });
 
 function isEmptyCell(v) {
@@ -500,13 +507,26 @@ function clearAll() {
 
 // Anno / corso
 function applyYearChoice(year) {
-  selectedYear = String(year); localStorage.setItem("cal-anno", selectedYear);
+  selectedYear = String(year);
+  localStorage.setItem("cal-anno", selectedYear);
+
   yearLabel.textContent = `Anno ${selectedYear}`;
+
   const logo = document.getElementById("courseLogo");
   if (logo) { logo.textContent = "ITS"; logo.classList.remove("active-logo"); }
-  landing.classList.add("hidden"); appSection.classList.add("hidden"); courseSection.classList.remove("hidden");
+
+  if (landing) landing.classList.add("hidden");
+  appSection.classList.add("hidden");
+  courseSection.classList.remove("hidden");
+
   renderCourseButtons(selectedYear);
-  $("#courseHint").textContent = selectedYear === "1" ? "Seleziona un corso dell’Anno 1 per aprire il calendario." : "Seleziona un corso dell’Anno 2 per aprire il calendario.";
+
+  const hint = $("#courseHint");
+  if (hint) {
+    hint.textContent = selectedYear === "1"
+      ? "Seleziona un corso dell’Anno 1 per aprire il calendario."
+      : "Seleziona un corso dell’Anno 2 per aprire il calendario.";
+  }
 }
 function goToCalendarWithCourse(courseKey) {
   const list = COURSES[String(selectedYear)] || []; const course = list.find((c) => c.key === courseKey); if (!course) return;
@@ -619,9 +639,8 @@ function updateAddButtonLink() {
 // Init
 (function init() {
   localStorage.removeItem("cal-anno");
-  const logo = document.getElementById("courseLogo"); if (logo) { logo.textContent = "ITS"; logo.classList.remove("active-logo"); }
-  landing.classList.remove("hidden"); courseSection.classList.add("hidden"); appSection.classList.add("hidden"); btnBack.classList.add("hidden");
-  yearLabel.textContent = "Scegli un anno per iniziare";
+  const logo = document.getElementById("courseLogo");
+  if (logo) { logo.textContent = "ITS"; logo.classList.remove("active-logo"); }
   setStatus("Carico calendario…");
   updateToggleButton();
 })();
