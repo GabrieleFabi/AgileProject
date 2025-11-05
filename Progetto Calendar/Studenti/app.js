@@ -905,13 +905,13 @@ function updateAddButtonLink() {
   if (calId) {
     btn.disabled = false;
     btn.dataset.calId = calId;
-    btn.textContent = "➕ Abbonati a questo calendario";
+    btn.textContent = "➕ Sincronizza su Google Calendar";
     btn.title =
       "Apri Google Calendar e aggiungi il calendario del corso attivo";
   } else {
     btn.disabled = true;
     delete btn.dataset.calId;
-    btn.textContent = "➕ Abbonati a questo calendario";
+    btn.textContent = "➕ Sincronizza su Google Calendar";
   }
 }
 
