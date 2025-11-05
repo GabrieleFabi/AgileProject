@@ -81,8 +81,6 @@ h1 { font-size: clamp(20px, 2.4vw, 28px); margin: 0; }
 }
 .note { margin-top: 8px; color: var(--muted); font-size: 12px; }
 
-
-
 .table-wrap { width: 100%; flex: 1; padding: 16px; border-radius: 18px; background: var(--surface); box-sizing: border-box; overflow: auto; }
 table { width: 100%; border-collapse: separate; border-spacing: 0; }
 thead th {
@@ -117,104 +115,10 @@ th:nth-child(1), td:nth-child(1) {
 
 .footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; color: var(--muted); font-size: 12px; }
 
-.link-list {
-  margin-top: 10px;
-  display: grid;
-  gap: 8px;
-}
-
-.link-list a {
-  display: inline-block;
-  text-decoration: none;
-  padding: 8px 10px;
-  border: 1px solid var(--border, #e5e7eb);
-  border-radius: 8px;
-  background: var(--surface-2, #f7f8fa);
-  font-weight: 600;
-  word-break: break-word;
-}
-
-.link-list .muted {
-  color: var(--muted, #6b7280);
-  font-weight: 500;
-}
-
-/* --- Card Google Calendar Docenti (stile Studenti) --- */
-#gcalCard {
-  text-align: center;
-}
-#gcalCard h3 {
-  margin-top: 0;
-  margin-bottom: 12px;
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-#gcalCard .inner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-.btn.big {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  max-width: 280px;
-  padding: 10px 14px;
-  font-size: 15px;
-  font-weight: 600;
-  border-radius: 10px;
-  transition: all 0.15s ease;
-}
-.btn.primary {
-  background: linear-gradient(180deg, #3b82f6, #2563eb);
-  color: #fff;
-  border: none;
-}
-.btn.primary:hover {
-  filter: brightness(1.05);
-}
-.btn.secondary {
-  background: #fff;
-  color: #1f2937;
-  border: 1px solid #d1d5db;
-}
-.btn.secondary:hover {
-  background: #f9fafb;
-}
-.btn .emoji {
-  font-size: 1.1em;
-}
-#gcalCard p.small {
-  font-size: 13px;
-  color: var(--muted);
-  margin: 6px 0 0;
-}
-.link-list {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 8px;
-}
-.link-list a {
-  font-weight: 600;
-  border-radius: 999px;
-  padding: 4px 10px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-}
-.link-list a:hover {
-  background: var(--surface-2);
-}
-
 /* mobile tweak */
 @media (max-width: 520px) {
   .btn.big { max-width: 100%; }
 }
-
 
 @media (max-width: 520px) {
   /* Previene overflow e mantiene padding interno */
@@ -227,7 +131,7 @@ th:nth-child(1), td:nth-child(1) {
   table {
     width: 100%;
     border-collapse: collapse;
-    table-layout: fixed; /* opzionale: colonne più stabili su mobile */
+    table-layout: fixed;
   }
 
   th, td {
@@ -235,12 +139,10 @@ th:nth-child(1), td:nth-child(1) {
     word-break: break-word;
   }
 
-  /* Centra la tabella ed evita margine a destra */
   .table-wrap table {
     margin: 0 auto;
   }
 
-  /* Orario su tre righe se presente */
   th:nth-child(2), td:nth-child(2) {
     white-space: pre-line;
     text-align: center;
@@ -257,8 +159,6 @@ th:nth-child(1), td:nth-child(1) {
   }
 }
 
-
-
 /* Pagination */
 .pager { display: inline-flex; align-items: center; gap: 8px; }
 .sel {
@@ -267,7 +167,6 @@ th:nth-child(1), td:nth-child(1) {
   border: 1px solid var(--border);
   background: var(--surface);
 }
-
 
 .controls-split { display: flex; justify-content: center; align-items: center; }
 .controls-inline.centered { display: inline-flex; gap: 8px; align-items: center; justify-content: center; width: 100%; }
@@ -291,29 +190,6 @@ th:nth-child(1), td:nth-child(1) {
   outline: none;
 }
 
-@media (max-width: 520px) {
-  .controls-inline.centered { flex-direction: column; align-items: stretch; }
-  .input, .btn { width: 100%; }
-}
-
-body {
-    font-size: 14px; /* dimensione base più piccola */
-  }
-
-  .btn,
-  .input,
-  .legend-chip,
-  .note,
-  .muted,
-  table,
-  th,
-  td {
-    font-size: 13px; /* testi e bottoni più compatti */
-  }
-  h1 {
-    font-size: 20px;
-  }
-
 /* Home: griglia docenti */
 .teacher-grid {
   display: grid;
@@ -326,7 +202,6 @@ body {
   font-weight: 600;
   letter-spacing: .2px;
 }
-
 
 /* Split controls left/right */
 .controls-split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: stretch; }
@@ -368,7 +243,6 @@ body {
 
 /* Course-colored rows */
 tbody tr.course-row {
-  /* fallback if inline is missing */
   background: rgba(59,130,246,0.06);
   border-left: 4px solid rgba(59,130,246,0.5);
 }
@@ -376,54 +250,11 @@ tbody tr.course-row:hover {
   filter: brightness(0.98);
 }
 
-/* Ottimizzazioni per telefoni molto stretti */
-@media (max-width: 380px) {
-  body {
-    font-size: 13px;
-  }
-
-  h1 {
-    font-size: 18px;
-  }
-
-  .input {
-    min-width: 100%;
-    font-size: 13px;
-    padding: 6px 8px;
-  }
-
-  .btn {
-    font-size: 13px;
-    padding: 6px 8px;
-    white-space: nowrap; /* evita a capo */
-  }
-
-  .legend-chip {
-    font-size: 12px;
-    padding: 4px 8px;
-  }
-
-  .legend-swatch {
-    width: 12px;
-    height: 12px;
-  }
-
-  table th,
-  table td {
-    font-size: 12px;
-    padding: 8px 4px;
-  }
-
-  .card .inner {
-    padding: 10px;
-  }
-}
-
 /* --- Overlay di progresso bloccante --- */
 .progress-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45); /* backdrop */
+  background: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(2px);
   display: grid;
   place-items: center;
@@ -489,9 +320,4 @@ tbody tr.course-row:hover {
   .progress-title { font-size: 16px; }
 }
 
-/* Rispetta l'attributo hidden dell'overlay */
 .progress-overlay[hidden] { display: none !important; }
-
-
-
-

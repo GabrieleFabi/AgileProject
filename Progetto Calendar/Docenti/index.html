@@ -11,25 +11,26 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   </head>
   <body>
-      <!-- Overlay di progresso (bloccante) -->
-      <div id="progressOverlay" class="progress-overlay" hidden aria-live="polite" role="dialog" aria-modal="true">
-        <div class="progress-card" role="document">
-          <div class="progress-spinner" aria-hidden="true"></div>
-          <h3 id="progressTitle" class="progress-title">Sincronizzazione calendario…</h3>
+    <!-- Overlay di progresso (bloccante) -->
+    <div id="progressOverlay" class="progress-overlay" hidden aria-live="polite" role="dialog" aria-modal="true">
+      <div class="progress-card" role="document">
+        <div class="progress-spinner" aria-hidden="true"></div>
+        <h3 id="progressTitle" class="progress-title">Elaborazione…</h3>
 
-          <div class="progress-bar" aria-label="Avanzamento">
-            <div id="progressFill" class="progress-fill" style="width:0%"></div>
-          </div>
-
-          <div class="progress-meta">
-            <span id="progressPct">0%</span>
-            <span class="sep">•</span>
-            <span id="progressCount">0 / 0</span>
-          </div>
-
-          <p class="progress-hint">Non chiudere questa pagina finché l’operazione non è terminata.</p>
+        <div class="progress-bar" aria-label="Avanzamento">
+          <div id="progressFill" class="progress-fill" style="width:0%"></div>
         </div>
-  </div>
+
+        <div class="progress-meta">
+          <span id="progressPct">0%</span>
+          <span class="sep">•</span>
+          <span id="progressCount">0 / 0</span>
+        </div>
+
+        <p class="progress-hint">Non chiudere questa pagina finché l’operazione non è terminata.</p>
+      </div>
+    </div>
+
     <div class="wrap">
       <header>
         <div class="title">
@@ -101,18 +102,6 @@
           <select id="timeColumnSelect"></select>
         </div>
 
-        <!-- Google Calendar card -->
-        <div class="card" id="gcalCard" style="display:none;">
-          <div class="inner" style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center">
-            <button class="btn primary" id="btnGConnect" type="button">🔑 Connetti Google</button>
-            <button class="btn" id="btnPushEvents" type="button" disabled>➕ Sincronizzati al calendario su Google Calendar</button>
-            <div id="gcalLinks" class="link-list" hidden aria-live="polite"></div>
-          </div>
-          <div class="hint" style="padding:0 16px 16px; text-align:center">
-            Scegli un <strong>corso</strong> e ti apro Google Calendar per abbonarti al suo calendario centrale.
-          </div>
-        </div>
-
         <div class="card">
           <div class="inner controls-split">
             <div class="controls-left">
@@ -156,8 +145,6 @@
       </section>
     </div>
 
-    <!-- Solo Google Identity Services (OAuth), nessuna gapi calendar -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="app.js" defer></script>
   </body>
 </html>
