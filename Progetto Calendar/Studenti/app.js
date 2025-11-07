@@ -128,9 +128,7 @@ async function loadLocalCalendar() {
       };
     }
 
-    const IS_REMOTE = /^https?:\/\//i.test(DEFAULT_XLSX_URL);
-    const LABEL_SRC = IS_REMOTE ? "(web app)" : "(locale)";
-    setStatus(`Calendario caricato ${LABEL_SRC}`, "ok");
+    setStatus("Excel caricato", "ok");
   } catch (err) {
     console.error("Errore nel caricamento calendario:", err);
     setStatus(
