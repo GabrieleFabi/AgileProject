@@ -52,11 +52,23 @@
           accept=".xlsx,.xls,.csv"
           style="display: none"
         />
-        <button class="btn ghost" id="btnBack" type="button">
+        <button class="btn ghost hidden" id="btnBack" type="button">
           ⬅️ Torna alla selezione corso
         </button>
         <div class="badge" id="statusBadge">Nessun file</div>
       </header>
+
+      <!-- Selezione ANNO (mostrata se manca ?year=) -->
+      <section id="landing" class="landing">
+        <div class="landing-card">
+          <h2>Seleziona l’Anno</h2>
+          <div class="landing-buttons">
+            <button class="btn big primary" data-anno="1">Anno 1</button>
+            <button class="btn big primary" data-anno="2">Anno 2</button>
+          </div>
+          <p class="hint">Puoi usare anche i link diretti con ?year=1 oppure ?year=2.</p>
+        </div>
+      </section>
 
       <!-- Selezione corso (mostrata subito in base a ?year) -->
       <section id="courseSection" class="landing">

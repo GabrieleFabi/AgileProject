@@ -185,21 +185,23 @@ const COURSES = {
 
 const DROP_HEADER_RE = /^(colonna|giorno|fust2)$/i;
 
-// Avvio con query ?year=1|2 (default: 2)
+// Avvio: se c'è ?year=1|2 salto la landing, altrimenti mostro la landing
 window.addEventListener("DOMContentLoaded", () => {
   const params = new URLSearchParams(window.location.search);
-  let forcedYear = params.get("year");
-  if (forcedYear !== "1" && forcedYear !== "2") {
-    // Nessun year: manda all'anno 2 (URL consistente)
-    const base = window.location.pathname.replace(/\/+$/, "") || "/";
-    window.history.replaceState(null, "", `${base}?year=2`);
-    forcedYear = "2";
+  const forcedYear = params.get("year");
+
+  if (forcedYear === "1" || forcedYear === "2") {
+    // URL già completo → vai direttamente alla scelta corso di quell'anno
+    document.getElementById("landing")?.classList.add("hidden");
+    applyYearChoice(forcedYear);
+  } else {
+    // Nessun year → mostra la landing (scelta anno) e nascondi il resto
+    document.getElementById("landing")?.classList.remove("hidden");
+    courseSection.classList.add("hidden");
+    appSection.classList.add("hidden");
+    yearLabel.textContent = "—";
+    btnBack.classList.add("hidden");   
   }
-  if (landing) landing.classList.add("hidden");
-  applyYearChoice(forcedYear);
-  // (opzionale) nascondi il parametro dopo il routing
-  const cleanUrl = window.location.pathname;
-  window.history.replaceState(null, "", cleanUrl);
 });
 
 function isEmptyCell(v) {
@@ -728,10 +730,13 @@ function clearAll() {
   setStatus("Nessun file");
 }
 
-// Anno / corso
 function applyYearChoice(year) {
   selectedYear = String(year);
   localStorage.setItem("cal-anno", selectedYear);
+
+  // Aggiorna l’URL mantenendo il dominio/percorso, aggiungendo ?year=X
+  const base = window.location.pathname.replace(/\/+$/, "") || "/";
+  window.history.replaceState(null, "", `${base}?year=${selectedYear}`);
 
   yearLabel.textContent = `Anno ${selectedYear}`;
 
@@ -741,9 +746,11 @@ function applyYearChoice(year) {
     logo.classList.remove("active-logo");
   }
 
-  if (landing) landing.classList.add("hidden");
+  // passa dalla landing alla scelta corso
+  document.getElementById("landing")?.classList.add("hidden");
   appSection.classList.add("hidden");
   courseSection.classList.remove("hidden");
+  btnBack.classList.add("hidden"); 
 
   renderCourseButtons(selectedYear);
 
@@ -755,6 +762,7 @@ function applyYearChoice(year) {
         : "Seleziona un corso dell’Anno 2 per aprire il calendario.";
   }
 }
+
 function goToCalendarWithCourse(courseKey) {
   const list = COURSES[String(selectedYear)] || [];
   const course = list.find((c) => c.key === courseKey);
