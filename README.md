@@ -1,30 +1,33 @@
-# 📘 ITS Calendario Studs 2025
+# 📘 ITS Calendario 2025-2027
 
 ## 🧭 Panoramica generale
 
-**Nome progetto:** ITS Calendario Studs 2025  
-**Obiettivo:** Fornire un sistema interattivo per la visualizzazione dei calendari delle lezioni degli studenti ITS, generato dinamicamente da un file Excel aggiornato giornalmente e automaticamente tra mezzanotte e l'una.
-**Utenti finali:** Studenti, docenti e personale amministrativo dell’istituto.  
+**Nome progetto:** ITS Calendario 2025-2027  
+**Obiettivo:** Fornire due portali dedicati per la consultazione dei calendari delle lezioni: uno per gli **Studenti** e uno per i **Docenti**. I dati vengono caricati da file Excel e visualizzati in modo interattivo.
+**Utenti finali:** Studenti, docenti e personale amministrativo dell’istituto.
 
-**Hosting:**
-- 🌐 **Sito pubblico:** Google Sites  
-- 🚀 **Applicazione interattiva:** Netlify (deploy statico HTML/JS/CSS)  
-- 🔗 **Esempio URL:** [https://its-calendar-2025-2027.netlify.app](https://its-calendar-2025-2027.netlify.app)
+**Portale Studenti:** [https://cal-stud-itsaa.surge.sh/](https://cal-stud-itsaa.surge.sh/)  
+**Portale Docenti:** [https://cal-doc-itsaa.surge.sh/](https://cal-doc-itsaa.surge.sh/)
 
 ---
 
 ## 🏗️ Architettura del sistema
 
-Il sistema è composto da due parti principali:
+Il progetto è diviso in due applicazioni web distinte, entrambe ospitate su Surge:
 
-### 1️⃣ Frontend — Applicazione Web Interattiva
-- Ospitata su **Netlify**, poi incorporata nel Google Site ufficiale tramite un *iframe*.  
-- Contiene tutta la logica di visualizzazione, filtraggio e formattazione dei dati Excel.
+### 1️⃣ Portale Studenti (`/Studenti`)
+Dedicato agli studenti, permette di:
+- Selezionare il proprio **Anno** (1 o 2).
+- Scegliere il **Corso** specifico (es. *FUST*, *CYSE*, *WEB*...).
+- Visualizzare il calendario delle lezioni filtrato per il corso selezionato.
+- Vedere a colpo d'occhio giornate "corte" o esami.
 
-### 2️⃣ Backend “leggero” — Automazione file
-- Non esiste un server tradizionale.  
-- L’aggiornamento del file Excel è gestito da uno **script Google Apps Script** che ogni notte rigenera il file `calendario.xlsx` e lo pubblica su Netlify.  
-- Il sito legge sempre l’ultima versione per generare il calendario aggiornato.
+### 2️⃣ Portale Docenti (`/Docenti`)
+Dedicato ai docenti, permette di:
+- Visualizzare un elenco completo di tutti i docenti trovati nel file Excel.
+- Cercare il proprio nome tramite una barra di ricerca.
+- Accedere a una vista calendario personalizzata che aggrega tutte le lezioni del docente attraverso i vari corsi.
+- Filtrare le lezioni per corso specifico tramite una legenda interattiva.
 
 ---
 
@@ -32,148 +35,56 @@ Il sistema è composto da due parti principali:
 
 | Tecnologia | Ruolo | Descrizione |
 |-------------|--------|-------------|
-| **HTML5** | Struttura | Base semantica del sito, con layout responsive e sezioni dinamiche. |
-| **CSS3** | Stile | Styling responsivo, gestione colori, legende e bordi condizionali. |
-| **JavaScript (ES6)** | Logica | Lettura file Excel, filtraggio, ordinamento, ricerca e gestione viste. |
-| **SheetJS (xlsx.js)** | Parsing Excel | Libreria per leggere e convertire file Excel in JSON. |
-| **Netlify** | Hosting statico | Deploy rapido e gratuito di HTML/JS/CSS. |
-| **Google Sites** | Integrazione | Piattaforma istituzionale per incorporare l’app tramite iframe. |
-| **Google Drive / Sheets** | Sorgente dati | File Excel aggiornato automaticamente ogni notte. |
-| **CSS Flexbox / Grid** | Layout | Struttura adattiva per desktop, tablet e mobile. |
+| **HTML5** | Struttura | Base semantica, layout responsive. |
+| **CSS3** | Stile | Styling moderno, variabili CSS, Flexbox/Grid, design responsive. |
+| **JavaScript (ES6)** | Logica | Parsing Excel (SheetJS), logica di filtraggio, gestione DOM. |
+| **SheetJS (xlsx)** | Libreria | Lettura e parsing dei file `.xlsx` direttamente nel browser. |
+| **Surge** | Hosting | Hosting statico per il deploy delle due applicazioni. |
 
 ---
 
 ## 🧩 Funzionalità principali
 
-### 🔹 1. Selezione Anno e Corso
-- Schermata iniziale per la scelta del corso (es. *FUST*, *CYSE*...).  
-- Ogni corso carica dinamicamente le lezioni corrispondenti.  
-- Al ricaricamento, la pagina iniziale è sempre la selezione corso per coerenza.
+### 🎓 Portale Studenti
+1.  **Selezione Guidata:**
+    *   Scelta Anno (1° o 2°).
+    *   Scelta Corso (bottoni generati dinamicamente).
+2.  **Visualizzazione Calendario:**
+    *   Tabella chiara con Data, Orario, Modulo, Docente, Aula.
+    *   **Evidenziazione Esami:** Le penultime lezioni di ogni modulo vengono evidenziate in verde.
+    *   **Warning Orari:** Giornate con poche ore di lezione sono segnalate in arancione (<8h) o rosso (≤4h).
+3.  **Filtri:**
+    *   Barra di ricerca testuale (cerca per materia, docente, ecc.).
+    *   Bottone "Mostra tutto" per vedere anche le lezioni passate (default: da oggi in poi).
 
-### 🔹 2. Caricamento e parsing automatico Excel
-- Lettura automatica del file `calendario.xlsx` con **SheetJS (XLSX)**.  
-- Le colonne vengono interpretate automaticamente (Data, Ora, Corso, Materia, Docente, Aula…).
-
-### 🔹 3. Visualizzazione tabellare dinamica
-- Tabella HTML responsive con intestazioni dinamiche.
-- **Colonne principali:**  
-  - Data (`dd/mm/aa`)  
-  - Orario (3 righe: inizio / “–” / fine)  
-  - Materia / Docente / Aula  
-- Adattamento completo per mobile tramite CSS Grid.
-
-### 🔹 4. Filtri e ricerca
-- Barra di ricerca per testo libero (materia, docente, aula...).  
-- Filtraggio in tempo reale della tabella.
-
-### 🔹 5. Bottone “Mostra tutto”
-- Mostra solo da oggi in poi per default.  
-- Il bottone **“Mostra tutto”** ricarica l’intero calendario.
-
-### 🔹 6. Evidenziazione orari insufficienti
-| Condizione | Colore | Significato |
-|-------------|---------|-------------|
-| ≥ 8 ore | Nessun colore | Giorno pieno |
-| < 8 ore | 🟧 Arancione chiaro | Giornata parziale |
-| < 4 ore | 🔴 Rosso chiaro | Giornata ridotta |
-
-### 🔹 7. Legenda grafica
-- Box laterale con i colori `<8h`, `<4h`, `esame`.  
-- Layout 50/50 con barra di ricerca.
-
-### 🔹 8. Logo dinamico
-- Rettangolo blu in alto a sinistra con il **nome del corso corrente**.  
-- In home/selezione corso mostra “ITS”.
-
-### 🔹 9. Gestione utenti multipli
-- Sistema in sola lettura (read-only).  
-- Tutti gli utenti accedono alla stessa istanza pubblicata.  
-- Il file Excel è condiviso tramite account abilitato dell’istituto.
+### �‍🏫 Portale Docenti
+1.  **Elenco Docenti:**
+    *   Generazione automatica della lista docenti dai dati Excel.
+    *   Ricerca rapida per nome.
+2.  **Calendario Personale:**
+    *   Vista aggregata di tutte le lezioni del docente selezionato.
+    *   Le righe sono colorate in base al Corso di appartenenza.
+3.  **Legenda Interattiva:**
+    *   Permette di accendere/spegnere la visualizzazione dei singoli corsi per un'analisi più pulita.
 
 ---
 
-## 💻 Funzioni del codice JavaScript
+## � Design Responsive
 
-### 🧾 Acquisizione & parsing Excel
-- **`fetchAndLoadXlsx(url)`** → Scarica e carica il file Excel da Netlify.  
-- **`handleFile(file)`** → Carica un file Excel locale.  
-- **`excelToJson(ws)`** → Converte il foglio attivo in JSON normalizzato.
+Entrambi i portali sono ottimizzati per l'uso da mobile:
+- **Mobile:** Layout a colonna singola, orari compattati, tabelle scorrevoli orizzontalmente se necessario.
+- **Desktop:** Layout esteso, controlli affiancati, tabelle ampie.
 
-### 🧮 Pre-calcolo e formattazioni
-- **`computeDayCoverage(headers, rows)`** → Calcola minuti giornalieri per evidenziazione `<8h` / `≤4h`.  
-- **`computePenultimateKeys(headers, rows)`** → Identifica penultime lezioni (esame).  
-- **Helpers** → `fmtDateIT`, `fmtTimeFromDate`, `fmtTimeFromFraction`, `prettyValue`.
+## � Deploy
 
-### 🧱 Rendering & filtri
-- **`renderTable(baseHeaders, allRows)`**
-  1. Costruisce la tabella HTML con header originali.  
-  2. Combina “Dalle–Alle” in “Orario” su mobile.  
-  3. Applica il filtro “da oggi”.  
-  4. Filtra in tempo reale da `#searchInput`.  
-  5. Evidenzia giorni corti e “Esame”.
+Il progetto viene distribuito tramite **Surge.sh**.
+Ogni cartella (`Studenti` e `Docenti`) viene deployata come sito indipendente.
 
-### 🔍 Ricerca & viste
-- **Ricerca live:** integrata nel `renderTable(...)`.  
-- **Filtro “Mostra tutto / da oggi”:** gestito da `showAll` + `updateToggleButton()`.  
-- **Reset:** `clearAll()` riporta alla selezione corso e resetta logo ITS.
+Comandi di deploy (eseguiti dalla root del progetto):
+```bash
+# Deploy Studenti
+npx surge "./Progetto Calendar/Studenti" cal-stud-itsaa.surge.sh
 
-### 🌙 Aggiornamento notturno
-- **`scheduleMidnightRefresh()`** → Ricarica automaticamente il calendario alle **00:05**, sincronizzato con Netlify.
-
-### 🧩 Integrazione UI
-- Gestione eventi: caricamento, selezione fogli, toggle, ritorno, scelta anno/corso.  
-- `init()` lancia il caricamento automatico da `/data/calendario.xlsx`.
-
----
-
-## 📱 Design responsive
-
-**Mobile**
-- Colonna orari su 3 righe.
-- Layout a colonna singola.
-- Padding ridotto.
-
-**Desktop / Tablet**
-- Barra comandi + legenda affiancate (50% ciascuna).
-- Tabelle con padding maggiore.
-- Righe e settimane ben separate.
-
----
-
-## 🔄 Sincronizzazione notturna (Google Apps Script → Netlify)
-
-Ogni notte lo script:
-1. Esporta lo Sheet di Google in `.xlsx`.  
-2. Legge il manifest dell’ultimo deploy Netlify.  
-3. Aggiorna solo il file `/data/calendario.xlsx`.  
-4. Crea un nuovo deploy con il manifest clonato.  
-5. Carica solo il file aggiornato.
-
-> 💡 In questo modo il sito resta identico e viene aggiornato solo il calendario, evitando rebuild completi e tempi d’attesa.
-
-### ⚙️ Flusso di esecuzione (`nightlyUploadXlsxToNetlify()`)
-
-1. Export XLSX via API Drive v3 (`files/{id}/export`).  
-2. Legge il `published_deploy.id` di Netlify.  
-3. Elenca file del deploy e costruisce `{ "/path": "sha1" }`.  
-4. Sostituisce `TARGET_PATH` con nuovo digest SHA1.  
-5. Crea un nuovo deploy con manifest clonato.  
-6. Upload PUT solo del file aggiornato.  
-7. Log finale con `deploy.id`.
-
-> Netlify **non ricompila** i file statici: viene aggiornato solo `/data/calendario.xlsx`.
-
----
-
-## 🚀 Distribuzione e Deploy
-
-### 🟢 Netlify
-- Deploy statico HTML/CSS/JS.  
-- Upload via drag & drop su [app.netlify.com/drop](https://app.netlify.com/drop).  
-- Genera URL pubblico, es. `https://its-calendar-2025-2027.netlify.app`.
-
-### 🟣 Google Sites
-- Nella pagina ufficiale ITS si inserisce un *iframe*:  
-
-```html
-<iframe src="https://its-calendar-2025-2027.netlify.app" width="100%" height="900"></iframe>
+# Deploy Docenti
+npx surge "./Progetto Calendar/Docenti" cal-doc-itsaa.surge.sh
+```
