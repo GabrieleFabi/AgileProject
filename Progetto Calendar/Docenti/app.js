@@ -374,7 +374,8 @@ function normalizeHeaderName(h) {
 function dropUnwantedColumns(headers, rows) {
   const norm = headers.map(normalizeHeaderName);
   const removeByName = new Set();
-  const isMobile = window.innerWidth <= 520;
+  const isMobile =
+    window.matchMedia && window.matchMedia("(max-width: 520px)").matches;
 
   norm.forEach((h, i) => {
     if (
@@ -575,7 +576,8 @@ function collectRowsForTeacher(displayName) {
     matches.forEach((r) => (r["Corso"] = normalizeCourseName(sheetName)));
 
     // Mobile: combina orari
-    const isMobile = window.innerWidth <= 520;
+    const isMobile =
+      window.matchMedia && window.matchMedia("(max-width: 520px)").matches;
     let processed = matches;
     let finalHeaders = headers.slice();
     if (!finalHeaders.includes("Corso")) finalHeaders.push("Corso");
