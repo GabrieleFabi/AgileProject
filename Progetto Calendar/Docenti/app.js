@@ -11,9 +11,7 @@ const calendarSection = $("#calendarSection");
 const teacherList = $("#teacherList");
 const teacherSearch = $("#teacherSearch");
 
-const dropZone = $("#dropZone");
-const pickBtn = $("#pickBtn");
-const fileInput = $("#fileInput");
+
 
 const dateColumnSelect = $("#dateColumnSelect");
 const timeColumnSelect = $("#timeColumnSelect");
@@ -47,48 +45,7 @@ let showAll = false;
 let searchQuery = "";
 let selectedCourses = new Set();
 
-// --- Progress Overlay (bloccante) ------------------------------------------
-const overlayEl = document.getElementById("progressOverlay");
-const fillEl = document.getElementById("progressFill");
-const titleEl = document.getElementById("progressTitle");
-const pctEl = document.getElementById("progressPct");
-const countEl = document.getElementById("progressCount");
-if (overlayEl) overlayEl.hidden = true;
 
-let _progressTotal = 0;
-let _progressDone = 0;
-
-function showProgress({ title = "Elaborazione…", total = 0 } = {}) {
-  _progressTotal = Math.max(0, total);
-  _progressDone = 0;
-  if (titleEl) titleEl.textContent = title;
-  updateProgress(0);
-  if (overlayEl) {
-    overlayEl.hidden = false;
-    document.documentElement.style.overflow = "hidden";
-  }
-}
-
-function updateProgress(done, extraText) {
-  _progressDone = Math.min(Math.max(0, done), _progressTotal || done);
-  const pct =
-    _progressTotal > 0 ? Math.round((_progressDone / _progressTotal) * 100) : 0;
-  if (fillEl) fillEl.style.width = `${pct}%`;
-  if (pctEl) pctEl.textContent = `${pct}%`;
-  if (countEl)
-    countEl.textContent = `${_progressDone} / ${_progressTotal || "?"}`;
-  if (extraText && titleEl) titleEl.textContent = extraText;
-}
-
-function hideProgress(finalMessage) {
-  if (finalMessage && titleEl) titleEl.textContent = finalMessage;
-  if (overlayEl) {
-    setTimeout(() => {
-      overlayEl.hidden = true;
-      document.documentElement.style.overflow = "";
-    }, 250);
-  }
-}
 
 // --- Utility UI -------------------------------------------------------------
 function setStatus(text, tone = "info") {
@@ -132,7 +89,7 @@ function isLikelyXLSXArrayBuffer(buf) {
 
 async function loadLocalCalendar() {
   try {
-    setStatus("Carico calendario…");
+    setStatus("Caricando Excel...");
     const buf = await fetchXlsxArrayBuffer(DEFAULT_XLSX_URL);
     if (!isLikelyXLSXArrayBuffer(buf))
       throw new Error(
@@ -140,7 +97,7 @@ async function loadLocalCalendar() {
       );
     workbook = XLSX.read(buf, { type: "array" });
     buildTeacherList();
-    setStatus("Calendario caricato (statico)", "ok");
+    setStatus("Excel Caricato", "ok");
   } catch (err) {
     console.error("Errore nel caricamento calendario:", err);
     setStatus("Errore nel caricamento del calendario.", "err");
@@ -190,17 +147,17 @@ function courseColor(courseName) {
   const border = COURSE_FIXED.get(key);
   const c = border
     ? {
-        swatch: border,
-        bg: hexToRgba(border, 0.2),
-        hover: hexToRgba(border, 0.32),
-        border,
-      }
+      swatch: border,
+      bg: hexToRgba(border, 0.2),
+      hover: hexToRgba(border, 0.32),
+      border,
+    }
     : {
-        swatch: "#64748b",
-        bg: "rgba(100,116,139,0.20)",
-        hover: "rgba(100,116,139,0.32)",
-        border: "#64748b",
-      };
+      swatch: "#64748b",
+      bg: "rgba(100,116,139,0.20)",
+      hover: "rgba(100,116,139,0.32)",
+      border: "#64748b",
+    };
   COURSE_COLORS.set(courseName, c);
   return c;
 }
@@ -476,7 +433,7 @@ function compareByDateAndStart(a, b, dateH, startH) {
 // Caricamento file locale
 async function handleFile(file) {
   try {
-    setStatus("Leggo il file…");
+    setStatus("Caricando Excel...");
     const ab = await file.arrayBuffer();
     workbook = XLSX.read(ab, { type: "array" });
     buildTeacherList();
@@ -545,7 +502,7 @@ function buildTeacherList() {
     setStatus("File caricato, ma nessun docente trovato", "err");
     return;
   }
-  setStatus("File caricato — Docenti trovati", "ok");
+  setStatus("Excel Caricato", "ok");
 
   const frag = document.createDocumentFragment();
   arr.forEach((name) => {
@@ -587,7 +544,7 @@ function openCalendarFor(displayName) {
   currentPage = 1;
   renderTable();
   setStatus(
-    rowsForTeacher.length ? "Pronto" : "Nessuna lezione trovata",
+    rowsForTeacher.length ? "Excel Caricato" : "Nessuna lezione trovata",
     rowsForTeacher.length ? "ok" : "err"
   );
 }
@@ -813,40 +770,7 @@ function renderTable() {
 }
 
 // Eventi UI
-dropZone?.addEventListener("click", () => fileInput?.click());
-pickBtn?.addEventListener("click", () => fileInput?.click());
-fileInput?.addEventListener("change", (e) => {
-  const f = e.target.files?.[0];
-  if (f) handleFile(f);
-});
 
-["dragenter", "dragover"].forEach((ev) =>
-  dropZone?.addEventListener(ev, (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dropZone.classList.add("dragover");
-    setStatus("Rilascia per caricare…");
-  })
-);
-["dragleave", "dragend", "drop"].forEach((ev) =>
-  dropZone?.addEventListener(ev, (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dropZone.classList.remove("dragover");
-  })
-);
-dropZone?.addEventListener("drop", (e) => {
-  const f = e.dataTransfer?.files?.[0];
-  if (f) handleFile(f);
-});
-
-// Accessibilità tastiera
-dropZone?.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" || e.key === " ") {
-    e.preventDefault();
-    fileInput?.click();
-  }
-});
 
 // Paginazione
 prevPage?.addEventListener("click", () => {

@@ -17,46 +17,7 @@ const yearLabel = $("#yearLabel");
 const courseSection = $("#courseSection");
 const sheetSelect = $("#sheetSelect");
 
-// === Overlay di progresso bloccante (può tornare utile in futuro) ===
-const overlayEl = document.getElementById("progressOverlay");
-const fillEl = document.getElementById("progressFill");
-const titleEl = document.getElementById("progressTitle");
-const pctEl = document.getElementById("progressPct");
-const countEl = document.getElementById("progressCount");
-if (overlayEl) overlayEl.hidden = true;
 
-let _progressTotal = 0;
-let _progressDone = 0;
-
-function showProgress({ title = "Elaborazione…", total = 0 } = {}) {
-  _progressTotal = Math.max(0, total);
-  _progressDone = 0;
-  if (titleEl) titleEl.textContent = title;
-  updateProgress(0);
-  if (overlayEl) {
-    overlayEl.hidden = false;
-    document.documentElement.style.overflow = "hidden";
-  }
-}
-function updateProgress(done, extraText) {
-  _progressDone = Math.min(Math.max(0, done), _progressTotal || done);
-  const pct =
-    _progressTotal > 0 ? Math.round((_progressDone / _progressTotal) * 100) : 0;
-  if (fillEl) fillEl.style.width = `${pct}%`;
-  if (pctEl) pctEl.textContent = `${pct}%`;
-  if (countEl)
-    countEl.textContent = `${_progressDone} / ${_progressTotal || "?"}`;
-  if (extraText && titleEl) titleEl.textContent = extraText;
-}
-function hideProgress(finalMessage) {
-  if (finalMessage && titleEl) titleEl.textContent = finalMessage;
-  if (overlayEl) {
-    setTimeout(() => {
-      overlayEl.hidden = true;
-      document.documentElement.style.overflow = "";
-    }, 250);
-  }
-}
 
 /* ======= Mappa foglio → Google Calendar ID (rimane) ======= */
 const CALENDAR_BY_SHEET = {
@@ -99,7 +60,7 @@ const DEFAULT_XLSX_URL = "data/calendario.xlsx";
 
 async function loadLocalCalendar() {
   try {
-    setStatus("Carico calendario…");
+    setStatus("Caricando Excel...");
     const buf = await fetchXlsxArrayBuffer(DEFAULT_XLSX_URL);
     if (!isLikelyXLSXArrayBuffer(buf))
       throw new Error("Il file ottenuto non è un .xlsx valido (no firma PK)");
@@ -128,7 +89,7 @@ async function loadLocalCalendar() {
       };
     }
 
-    setStatus("Excel caricato", "ok");
+    setStatus("Excel Caricato", "ok");
   } catch (err) {
     console.error("Errore nel caricamento calendario:", err);
     setStatus(
@@ -198,7 +159,7 @@ window.addEventListener("DOMContentLoaded", () => {
     courseSection.classList.add("hidden");
     appSection.classList.add("hidden");
     yearLabel.textContent = "—";
-    btnBack.classList.add("hidden");   
+    btnBack.classList.add("hidden");
   }
 });
 
@@ -220,8 +181,8 @@ function setStatus(text, tone = "info") {
     tone === "ok"
       ? "var(--accent)"
       : tone === "err"
-      ? "var(--danger)"
-      : "var(--brand)";
+        ? "var(--danger)"
+        : "var(--brand)";
   statusBadge.style.borderColor = "var(--border)";
   statusBadge.style.boxShadow = "inset 0 0 0 1px var(--border)";
   statusBadge.style.color = "#fff";
@@ -318,8 +279,8 @@ const TIME_HEADER_RE = /^(ora|orario|dalle|alle|inizio|fine|start|end)$/i;
 function autoDetectDateHeader(headers) {
   const chosen =
     dateColumnSelect &&
-    dateColumnSelect.value &&
-    dateColumnSelect.value !== "— nessuna —"
+      dateColumnSelect.value &&
+      dateColumnSelect.value !== "— nessuna —"
       ? dateColumnSelect.value
       : null;
   if (chosen && headers.includes(chosen)) return chosen;
@@ -585,8 +546,8 @@ function renderTable(_headersInput, rowsBase) {
   const filtered = !q
     ? rows
     : rows.filter((row) =>
-        Object.values(row).some((v) => toText(v).includes(q))
-      );
+      Object.values(row).some((v) => toText(v).includes(q))
+    );
 
   // header
   tHead.innerHTML = "";
@@ -657,7 +618,7 @@ function renderTable(_headersInput, rowsBase) {
   renderOptions(dateColumnSelect, ["— nessuna —", ...headers]);
   renderOptions(timeColumnSelect, ["— nessuna —", ...headers]);
 
-  updateGcalUi();
+
 }
 
 // Import e caricamento locale
@@ -667,7 +628,7 @@ async function handleFile(file) {
     setStatus("File troppo grande (>10MB)", "err");
     return;
   }
-  setStatus(`Caricamento: ${file.name}…`);
+  setStatus("Caricando Excel...");
   const data = await file.arrayBuffer();
   workbook = XLSX.read(data, { type: "array" });
 
@@ -689,7 +650,7 @@ async function handleFile(file) {
 
   sheetSelect.value = defaultSheet;
   loadSheet(defaultSheet);
-  setStatus(`Pronto: ${file.name}`, "ok");
+  setStatus("Excel Caricato", "ok");
   fileInput.value = "";
 }
 function loadSheet(name) {
@@ -748,7 +709,7 @@ function applyYearChoice(year) {
   document.getElementById("landing")?.classList.add("hidden");
   appSection.classList.add("hidden");
   courseSection.classList.remove("hidden");
-  btnBack.classList.add("hidden"); 
+  btnBack.classList.add("hidden");
 
   renderCourseButtons(selectedYear);
 
@@ -835,55 +796,9 @@ function getCurrentSheetCalendarId() {
   return CALENDAR_BY_SHEET[sheetName] || null;
 }
 
-/* ====== Google OAuth (GIS) — manteniamo solo "Connetti Google" ====== */
-const GCAL = {
-  CLIENT_ID:
-    "835074642817-l007g9fchi8dbqpedev1hrqrkmjkd109.apps.googleusercontent.com",
-  SCOPES: "https://www.googleapis.com/auth/calendar.events",
-  tokenClient: null,
-  gisReady: false,
-  authed: false,
-};
+/* ====== Google Calendar Link ====== */
+// Rimossa logica OAuth complessa, manteniamo solo il link diretto
 
-window.addEventListener("load", () => {
-  if (window.google?.accounts?.oauth2) {
-    GCAL.tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: GCAL.CLIENT_ID,
-      scope: GCAL.SCOPES,
-      callback: (resp) => {
-        if (resp && resp.access_token) {
-          GCAL.authed = true;
-          updateGcalUi();
-        }
-      },
-    });
-    GCAL.gisReady = true;
-    updateGcalUi();
-  }
-});
-
-function updateGcalUi() {
-  const btnConn = $("#btnGConnect");
-  const btnPush = $("#btnPushEvents");
-  const ready = GCAL.gisReady;
-
-  if (btnConn) {
-    btnConn.disabled = !ready;
-    btnConn.textContent = GCAL.authed
-      ? "✅ Connesso a Google"
-      : "🔑 Connetti Google";
-  }
-
-  if (btnPush) {
-    const calId = getCurrentSheetCalendarId();
-    btnPush.disabled = !calId;
-  }
-}
-
-$("#btnGConnect")?.addEventListener("click", () => {
-  if (!GCAL.tokenClient) return;
-  GCAL.tokenClient.requestAccessToken({ prompt: GCAL.authed ? "" : "consent" });
-});
 
 /* Abbonati: apre Google Calendar con il cid del foglio corrente */
 $("#btnPushEvents")?.addEventListener("click", () => {
@@ -897,10 +812,7 @@ $("#btnPushEvents")?.addEventListener("click", () => {
     calId
   )}`;
   window.open(url, "_blank", "noopener,noreferrer");
-  setStatus(
-    "Si apre Google Calendar per aggiungere il calendario del corso.",
-    "ok"
-  );
+
 });
 
 /* Aggiorna stato/label del bottone “Abbonati…” in base al foglio */
