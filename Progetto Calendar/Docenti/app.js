@@ -838,7 +838,6 @@ function goHomeFromLogo() {
   pageTitle.textContent = "Calendario Docenti";
   subLabel.textContent = "Seleziona un docente per vedere le sue lezioni";
   location.hash = "";
-  setStatus("File caricato — scegli un docente", "ok");
   enableLogoAsHome(false);
 }
 const _openCalendarFor = openCalendarFor;
@@ -853,7 +852,6 @@ const _backHomeHandler = () => {
   pageTitle.textContent = "Calendario Docenti";
   subLabel.textContent = "Seleziona un docente per vedere le sue lezioni";
   location.hash = "";
-  setStatus("File caricato — scegli un docente", "ok");
   enableLogoAsHome(false);
 };
 backHomeBtn?.addEventListener("click", _backHomeHandler);

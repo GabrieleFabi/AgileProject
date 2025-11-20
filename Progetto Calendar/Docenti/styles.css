@@ -38,17 +38,22 @@ body {
 
 header {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  /* logo + titolo + badge in colonna */
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  text-align: center;
+  /* centra il testo del titolo e della sub */
 }
 
 .title {
   display: flex;
+  flex-direction: column;
+  /* logo sopra, testo sotto */
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .logo {
@@ -315,7 +320,6 @@ td:nth-child(1) {
     text-align: center;
     white-space: pre-line !important;
     font-variant-numeric: tabular-nums;
-    font-weight: 600;
   }
 
   /* COLONNA 2: ORARIO (Strettissima) */
@@ -347,7 +351,6 @@ td:nth-child(1) {
   td:nth-child(5) {
     width: 48px;
     font-size: 10px;
-    color: var(--muted);
     text-align: center;
   }
 
@@ -507,10 +510,9 @@ td:nth-child(1) {
   box-shadow: inset 0 0 0 1px rgba(17, 24, 39, 0.12);
 }
 
-/* Course-colored rows */
 tbody tr.course-row {
-  background: rgba(59, 130, 246, 0.06);
-  border-left: 4px solid rgba(59, 130, 246, 0.5);
+  background: rgba(0, 0, 0, 0.015);
+  /* colore neutro, poi JS applica il vero colore */
 }
 
 tbody tr.course-row:hover {
