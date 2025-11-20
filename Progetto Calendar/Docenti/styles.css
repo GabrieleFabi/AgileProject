@@ -259,53 +259,127 @@ td:nth-child(1) {
   font-size: 12px;
 }
 
-/* mobile tweak */
+
 @media (max-width: 520px) {
+
+  /* 1. Layout generale: riduciamo i margini esterni */
+  .wrap {
+    padding: 0 8px;
+    /* Meno bordo bianco ai lati del telefono */
+  }
+
   .btn.big {
     max-width: 100%;
   }
-}
 
-@media (max-width: 520px) {
-
-  /* Previene overflow e mantiene padding interno */
   .table-wrap {
     overflow-x: auto;
-    padding: 0 8px 8px 8px;
     -webkit-overflow-scrolling: touch;
+    padding: 0;
+    border-radius: 12px;
   }
 
+  /* 2. Tabella fissa e compatta */
   table {
     width: 100%;
-    border-collapse: collapse;
     table-layout: fixed;
+    /* Fondamentale: rispetta le larghezze impostate sotto */
+    border-collapse: collapse;
   }
 
+  thead,
+  tbody {
+    font-size: 11px;
+    line-height: 1.15;
+  }
+
+  /* Riduciamo drasticamente il padding (spaziatura interna) delle celle */
   th,
   td {
-    padding: 8px 4px;
-    word-break: break-word;
+    padding: 5px 1px;
+    /* 5px sopra/sotto, 1px ai lati (molto stretto) */
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    vertical-align: middle;
+    /* Centra il testo verticalmente rispetto all'orario */
   }
 
-  .table-wrap table {
-    margin: 0 auto;
+  /* --- GESTIONE COLONNE --- */
+
+  /* COLONNA 1: DATA (Strettissima) */
+  th:nth-child(1),
+  td:nth-child(1) {
+    width: 40px;
+    /* Ridotto da 45 a 40px */
+    text-align: center;
+    white-space: pre-line !important;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
   }
 
+  /* COLONNA 2: ORARIO (Strettissima) */
   th:nth-child(2),
   td:nth-child(2) {
-    white-space: pre-line;
+    width: 42px;
+    /* Ridotto da 45 a 42px */
     text-align: center;
-    width: 56px;
+    white-space: pre-line !important;
     font-variant-numeric: tabular-nums;
     line-height: 1.1;
   }
 
-  th:nth-child(1),
-  td:nth-child(1) {
+  th:nth-child(3),
+  td:nth-child(3) {
+    width: 100px;
+    /* NUOVO: molto più equilibrato */
+    max-width: 110px;
+    /* NUOVO: impedisce espansione */
+    overflow-wrap: break-word;
+    text-align: left;
+    padding-left: 2px;
+  }
+
+  /* COLONNA 4 (Aula) e 5 (Corso) */
+  th:nth-child(4),
+  td:nth-child(4),
+  th:nth-child(5),
+  td:nth-child(5) {
+    width: 48px;
+    font-size: 10px;
+    color: var(--muted);
     text-align: center;
-    width: 64px;
-    white-space: nowrap;
-    font-variant-numeric: tabular-nums;
+  }
+
+  /* Nascondi colonne extra */
+  th:nth-child(n+6),
+  td:nth-child(n+6) {
+    display: none;
+  }
+
+  /* --- UI GENERALE MOBILE --- */
+  .controls-split {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* Titolo pagina più piccolo */
+  h1 {
+    font-size: 18px;
+  }
+
+  /* Adatta barra di ricerca e bottoni */
+  #searchInput,
+  .btn {
+    width: 100%;
+    font-size: 13px;
+    /* Evita zoom su iOS */
+  }
+
+  .controls-inline.centered {
+    flex-direction: column;
+    width: 100%;
+    gap: 6px;
   }
 }
 
