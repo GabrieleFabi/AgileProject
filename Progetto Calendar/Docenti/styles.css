@@ -179,6 +179,8 @@ h1 {
   padding: 16px;
   border-radius: 18px;
   background: var(--surface);
+  border-radius: 16px;
+  overflow: hidden;
   box-sizing: border-box;
   overflow: auto;
 }
@@ -188,6 +190,10 @@ table {
   border-collapse: collapse;
   /* qui il cambiamento importante */
   border-spacing: 0;
+  border-radius: 16px;
+  /* non fa da solo la curva, ma aiuta */
+  overflow: hidden;
+  /* per Firefox */
 }
 
 thead th {
