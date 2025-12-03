@@ -28,6 +28,9 @@ const searchInput = $("#searchInput");
 const backHomeBtn = $("#backHomeBtn");
 const courseLogo = $("#courseLogo");
 
+const ORIGINAL_SHEET_URL =
+  "https://docs.google.com/spreadsheets/d/1CzhWayCOAoSDatZRWhQumB5RynVVquAlLG15ZbcFNr8/edit?usp=drive_open&ouid=112053682300468600234";
+
 // --- Stato ---------------------------------------------------------------
 let workbook = null;
 let headersRef = [];
@@ -48,15 +51,34 @@ let selectedCourses = new Set();
 
 
 // --- Utility UI -------------------------------------------------------------
-function setStatus(text, tone = "info") {
+function setStatus(text, tone = "info", link = null) {
   statusBadge.textContent = text;
+
   const color =
     tone === "ok" ? "#10b981" : tone === "err" ? "#ef4444" : "#3b82f6";
+
   statusBadge.style.borderColor = "var(--border)";
   statusBadge.style.boxShadow = "inset 0 0 0 1px var(--border)";
   statusBadge.style.color = "#fff";
   statusBadge.style.background = `linear-gradient(180deg, ${color}, #1f2937aa)`;
+
+  // Gestione link al file originale
+  if (link) {
+    statusBadge.dataset.url = link;
+    statusBadge.classList.add("clickable");
+  } else {
+    delete statusBadge.dataset.url;
+    statusBadge.classList.remove("clickable");
+  }
 }
+
+statusBadge.addEventListener("click", () => {
+  const url = statusBadge.dataset.url;
+  if (url) {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+});
+
 
 function scrollToTop(smooth = true) {
   const el = document.scrollingElement || document.documentElement;
@@ -97,7 +119,7 @@ async function loadLocalCalendar() {
       );
     workbook = XLSX.read(buf, { type: "array" });
     buildTeacherList();
-    setStatus("Excel Caricato", "ok");
+    setStatus("Excel Caricato", "ok", ORIGINAL_SHEET_URL);
   } catch (err) {
     console.error("Errore nel caricamento calendario:", err);
     setStatus("Errore nel caricamento del calendario.", "err");
@@ -503,7 +525,7 @@ function buildTeacherList() {
     setStatus("File caricato, ma nessun docente trovato", "err");
     return;
   }
-  setStatus("Excel Caricato", "ok");
+  setStatus("Excel Caricato", "ok", ORIGINAL_SHEET_URL);
 
   const frag = document.createDocumentFragment();
   arr.forEach((name) => {
@@ -544,11 +566,13 @@ function openCalendarFor(displayName) {
   searchQuery = "";
   currentPage = 1;
   renderTable();
-  setStatus(
+    setStatus(
     rowsForTeacher.length ? "Excel Caricato" : "Nessuna lezione trovata",
-    rowsForTeacher.length ? "ok" : "err"
+    rowsForTeacher.length ? "ok" : "err",
+    rowsForTeacher.length ? ORIGINAL_SHEET_URL : null
   );
 }
+
 
 function collectRowsForTeacher(displayName) {
   headersRef = [];

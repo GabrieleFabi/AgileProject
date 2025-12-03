@@ -127,6 +127,9 @@ h1 {
   font-size: 12px;
   color: var(--muted);
 }
+.badge.clickable {
+  cursor: pointer;
+}
 
 .muted {
   color: var(--muted);

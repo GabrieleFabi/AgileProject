@@ -16,6 +16,8 @@ const appSection = $("#appSection");
 const yearLabel = $("#yearLabel");
 const courseSection = $("#courseSection");
 const sheetSelect = $("#sheetSelect");
+const ORIGINAL_SHEET_URL =
+  "https://docs.google.com/spreadsheets/d/1CzhWayCOAoSDatZRWhQumB5RynVVquAlLG15ZbcFNr8/edit?usp=drive_open&ouid=112053682300468600234";
 
 
 
@@ -89,7 +91,7 @@ async function loadLocalCalendar() {
       };
     }
 
-    setStatus("Excel Caricato", "ok");
+    setStatus("Excel Caricato", "ok", ORIGINAL_SHEET_URL);
   } catch (err) {
     console.error("Errore nel caricamento calendario:", err);
     setStatus(
@@ -175,14 +177,16 @@ function shouldDropHeader(h, rows) {
   if (DROP_HEADER_RE.test(String(h).trim())) return true;
   return rows.every((r) => isEmptyCell(r[h]));
 }
-function setStatus(text, tone = "info") {
+function setStatus(text, tone = "info", link = null) {
   statusBadge.textContent = text;
+
   const color =
     tone === "ok"
       ? "var(--accent)"
       : tone === "err"
         ? "var(--danger)"
         : "var(--brand)";
+
   statusBadge.style.borderColor = "var(--border)";
   statusBadge.style.boxShadow = "inset 0 0 0 1px var(--border)";
   statusBadge.style.color = "#fff";
@@ -190,7 +194,25 @@ function setStatus(text, tone = "info") {
     color,
     -20
   )})`;
+
+  // Gestione link al foglio originale
+  if (link) {
+    statusBadge.dataset.url = link;
+    statusBadge.classList.add("clickable");
+  } else {
+    delete statusBadge.dataset.url;
+    statusBadge.classList.remove("clickable");
+  }
 }
+
+statusBadge.addEventListener("click", () => {
+  const url = statusBadge.dataset.url;
+  if (url) {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+});
+
+
 function shade(hex, percent) {
   if (!hex.startsWith("#")) return hex;
   const num = parseInt(hex.slice(1), 16);
@@ -650,7 +672,7 @@ async function handleFile(file) {
 
   sheetSelect.value = defaultSheet;
   loadSheet(defaultSheet);
-  setStatus("Excel Caricato", "ok");
+  setStatus("Excel Caricato", "ok", ORIGINAL_SHEET_URL);
   fileInput.value = "";
 }
 function loadSheet(name) {

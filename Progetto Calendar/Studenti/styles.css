@@ -295,6 +295,10 @@ tbody tr:nth-child(even):hover {
   color: var(--muted);
 }
 
+.badge.clickable {
+  cursor: pointer;
+}
+
 /* Footer */
 .footer {
   display: flex;
