@@ -130,7 +130,7 @@ const COURSES = {
     { key: "enem1", label: "EneM", sheet: "EneM1" },
     { key: "agod1", label: "AgoD", sheet: "AgoD1" },
     { key: "imer1", label: "ImeR", sheet: "ImeR1" },
-    { key: "dita1", label: "Dita", sheet: "Dita1" },
+    { key: "dita1", label: "Dita", sheet: "DitA1" },
   ],
   2: [
     { key: "front", label: "Front", sheet: "Frot2" },
